@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const apiHost = window.location.hostname
 const api = axios.create({
-  baseURL: `http://${apiHost}:3000/api`,
+  baseURL: import.meta.env.VITE_API_URL,
   headers: { 'Content-Type': 'application/json' }
 })
 
@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
       const admin = JSON.parse(savedAdmin)
       config.headers['X-Admin-ID'] = admin.id
       if (savedTimestamp) config.headers['X-Session-Start'] = savedTimestamp
-    } catch (e) {}
+    } catch (e) { }
   }
   return config
 })
@@ -38,7 +38,7 @@ export const searchBooks = (q) => api.get('/books/search', { params: { q } })
 export const getBook = (id) => api.get(`/books/${id}`)
 export const createBook = (data) => api.post('/books', data)
 export const updateBook = (id, data) => api.put(`/books/${id}`, data)
-export const deleteBook = (id, adminId, adminNama, confirm = false, alasan = '') => 
+export const deleteBook = (id, adminId, adminNama, confirm = false, alasan = '') =>
   api.delete(`/books/${id}`, { params: { admin_id: adminId, admin_nama: adminNama, confirm, alasan } })
 
 export const getCategories = () => api.get('/categories')
