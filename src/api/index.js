@@ -9,13 +9,11 @@ api.interceptors.request.use((config) => {
   const savedAdmin = localStorage.getItem('currentAdmin')
   const savedTimestamp = localStorage.getItem('loginTimestamp')
 
-  if (savedAdmin) {
+  if (savedAdmin && savedTimestamp) {
     try {
       const admin = JSON.parse(savedAdmin)
       config.headers['X-Admin-ID'] = admin.id
-      if (savedTimestamp) {
-        config.headers['X-Session-Start'] = savedTimestamp
-      }
+      config.headers['X-Session-Start'] = savedTimestamp
     } catch (_) {}
   }
 
