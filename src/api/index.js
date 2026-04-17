@@ -1,8 +1,15 @@
 import axios from 'axios'
 
-const apiHost = window.location.hostname
+// Production: Render backend
+// Development: localhost:3000
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const BASE_URL = import.meta.env.VITE_API_URL
+  || (isLocal
+    ? `http://localhost:3000/api`
+    : 'https://pustaka-filsafat-api.onrender.com/api')
+
 const api = axios.create({
-  baseURL: `http://${apiHost}:3000/api`,
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }
 })
 
