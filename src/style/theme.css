@@ -1,0 +1,129 @@
+/* ============================================================
+   THEME SYSTEM — Pustaka Filsafat
+   Light & Dark mode via [data-theme] attribute on <html>
+   ============================================================ */
+
+/* ── LIGHT THEME (default) ─────────────────────────────── */
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --bg-page:        #FAFAFA;
+  --bg-surface:     #FFFFFF;
+  --bg-elevated:    #F5F5F5;
+  --bg-sunken:      #EFEFEF;
+
+  /* Text */
+  --text-primary:   #0A0A0A;
+  --text-secondary: #525252;
+  --text-muted:     #737373;
+  --text-inverse:   #FAFAFA;
+
+  /* Borders */
+  --border:         #E5E5E5;
+  --border-medium:  #D4D4D4;
+  --border-strong:  #0A0A0A;
+
+  /* Accent — UI Red */
+  --accent:         #C8102E;
+  --accent-hover:   #A00D24;
+  --accent-subtle:  rgba(200, 16, 46, 0.08);
+
+  /* Status */
+  --success:        #166534;
+  --success-bg:     #F0FDF4;
+  --warning:        #92400E;
+  --warning-bg:     #FFFBEB;
+  --danger:         #C8102E;
+  --danger-bg:      #FFF5F5;
+  --info:           #1E40AF;
+  --info-bg:        #EFF6FF;
+
+  /* Shadows */
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md:      0 4px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg:      0 12px 24px rgba(0, 0, 0, 0.1);
+
+  /* Navbar */
+  --nav-bg:         #0A0A0A;
+  --nav-text:       #A3A3A3;
+  --nav-text-active:#FAFAFA;
+  --nav-border:     #1A1A1A;
+
+  /* Theme toggle icon */
+  --theme-icon: "☀️";
+}
+
+/* ── DARK THEME ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Surfaces */
+  --bg-page:        #0A0A0A;
+  --bg-surface:     #141414;
+  --bg-elevated:    #1E1E1E;
+  --bg-sunken:      #0A0A0A;
+
+  /* Text */
+  --text-primary:   #FAFAFA;
+  --text-secondary: #A3A3A3;
+  --text-muted:     #737373;
+  --text-inverse:   #0A0A0A;
+
+  /* Borders */
+  --border:         #2A2A2A;
+  --border-medium:  #3A3A3A;
+  --border-strong:  #FAFAFA;
+
+  /* Accent — slightly brighter on dark */
+  --accent:         #E8304E;
+  --accent-hover:   #C8102E;
+  --accent-subtle:  rgba(232, 48, 78, 0.12);
+
+  /* Status — adjusted for dark bg */
+  --success:        #4ADE80;
+  --success-bg:     #052E16;
+  --warning:        #FCD34D;
+  --warning-bg:     #1C1200;
+  --danger:         #F87171;
+  --danger-bg:      #1C0A0A;
+  --info:           #60A5FA;
+  --info-bg:        #0D1B3E;
+
+  /* Shadows */
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:      0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg:      0 12px 24px rgba(0, 0, 0, 0.5);
+
+  /* Navbar — slightly lighter than page on dark */
+  --nav-bg:         #0F0F0F;
+  --nav-text:       #6B6B6B;
+  --nav-text-active:#FAFAFA;
+  --nav-border:     #1E1E1E;
+
+  /* Theme toggle icon */
+  --theme-icon: "🌙";
+}
+
+/* ── SCROLLBAR (dark mode) ──────────────────────────────── */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-elevated);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 3px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── TRANSITION SMOOTH SAAT GANTI TEMA ─────────────────── */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+/* Tapi jangan animate transform/opacity untuk performa */
+button, a, input, select, textarea {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+}

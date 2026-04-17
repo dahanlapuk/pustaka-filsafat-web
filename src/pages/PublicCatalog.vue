@@ -2,27 +2,39 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getBooks, searchBooks, getCategories } from '../api'
+import Pagination from '../components/Pagination.vue'
 
-const books = ref([])
-const categories = ref([])
-const loading = ref(true)
+const books        = ref([])
+const categories   = ref([])
+const loading      = ref(true)
 
-// View mode: 'card' or 'list'
+// View mode
 const viewMode = ref('card')
 
 // Filters
-const searchQuery = ref('')
+const searchQuery      = ref('')
 const selectedKategori = ref(null)
-const showSidebar = ref(true)
+const showSidebar      = ref(false)  // default tutup — dibuka via tombol mobile
 
-// Fetch books
+// Pagination
+const page       = ref(1)
+const limit      = ref(20)
+const total      = ref(0)
+const totalPages = ref(1)
+
+let searchTimer = null
+
+// Fetch books (dengan pagination)
 const fetchBooks = async () => {
   loading.value = true
   try {
-    const params = {}
+    const params = { page: page.value, limit: limit.value }
     if (selectedKategori.value) params.kategori_id = selectedKategori.value
-    const response = await getBooks(params)
-    books.value = response.data || []
+    const res       = await getBooks(params)
+    const d         = res.data
+    books.value     = d.data        || []
+    total.value     = d.total       || 0
+    totalPages.value = d.total_pages || 1
   } catch (err) {
     console.error(err)
   } finally {
@@ -30,24 +42,25 @@ const fetchBooks = async () => {
   }
 }
 
-const handleSearch = async (e) => {
-  const query = e.target.value
-  searchQuery.value = query
-  
-  if (!query.trim()) {
-    fetchBooks()
-    return
-  }
-  
-  loading.value = true
-  try {
-    const response = await searchBooks(query)
-    books.value = response.data || []
-  } catch (err) {
-    console.error(err)
-  } finally {
-    loading.value = false
-  }
+const handleSearch = (e) => {
+  searchQuery.value = e.target.value
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(async () => {
+    page.value = 1
+    if (!searchQuery.value.trim()) { fetchBooks(); return }
+    loading.value = true
+    try {
+      const res       = await searchBooks(searchQuery.value.trim(), page.value, limit.value)
+      const d         = res.data
+      books.value     = d.data        || []
+      total.value     = d.total       || 0
+      totalPages.value = d.total_pages || 1
+    } catch (err) {
+      console.error(err)
+    } finally {
+      loading.value = false
+    }
+  }, 350)
 }
 
 const fetchCategories = async () => {
@@ -62,6 +75,8 @@ const fetchCategories = async () => {
 const selectCategory = (catId) => {
   selectedKategori.value = catId
   searchQuery.value = ''
+  page.value = 1
+  showSidebar.value = false  // tutup bottom drawer setelah pilih di mobile
 }
 
 const selectedCategoryName = computed(() => {
@@ -70,8 +85,30 @@ const selectedCategoryName = computed(() => {
   return cat ? cat.nama : 'Kategori'
 })
 
+const onPageChange = (p) => {
+  page.value = p
+  if (searchQuery.value.trim()) {
+    // re-search dengan page baru
+    loading.value = true
+    searchBooks(searchQuery.value.trim(), p, limit.value).then(res => {
+      const d = res.data
+      books.value      = d.data        || []
+      total.value      = d.total       || 0
+      totalPages.value = d.total_pages || 1
+    }).finally(() => { loading.value = false })
+  } else {
+    fetchBooks()
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 watch(selectedKategori, () => {
   if (!searchQuery.value) fetchBooks()
+})
+
+watch(limit, () => {
+  page.value = 1
+  fetchBooks()
 })
 
 onMounted(() => {
@@ -90,30 +127,36 @@ onMounted(() => {
       </div>
     </header>
 
+    <!-- Mobile Category Toggle Button -->
+    <div class="mobile-cat-bar">
+      <button class="mobile-cat-toggle" @click="showSidebar = !showSidebar">
+        📁 {{ selectedCategoryName }}
+        <span class="mobile-cat-caret">{{ showSidebar ? '▲' : '▼' }}</span>
+      </button>
+    </div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div v-if="showSidebar" class="sidebar-overlay" @click="showSidebar = false"></div>
+
     <div class="catalog-layout">
       <!-- Sidebar -->
-      <aside class="sidebar" :class="{ collapsed: !showSidebar }">
+      <aside class="sidebar" :class="{ open: showSidebar }">
         <div class="sidebar-header">
           <h3>Kategori</h3>
-          <button @click="showSidebar = !showSidebar" class="sidebar-toggle">
-            <span v-if="showSidebar">◀</span>
-            <span v-else>▶</span>
-          </button>
+          <button @click="showSidebar = false" class="sidebar-toggle" aria-label="Tutup">✕</button>
         </div>
-        
-        <nav v-if="showSidebar" class="category-nav">
-          <button 
+        <nav class="category-nav">
+          <button
             @click="selectCategory(null)"
             class="category-item"
             :class="{ active: selectedKategori === null }"
           >
             <span class="category-icon">📚</span>
             <span class="category-name">Semua Buku</span>
-            <span class="category-count">{{ books.length }}</span>
+            <span class="category-count">{{ total }}</span>
           </button>
-          
-          <button 
-            v-for="cat in categories" 
+          <button
+            v-for="cat in categories"
             :key="cat.id"
             @click="selectCategory(cat.id)"
             class="category-item"
@@ -178,7 +221,12 @@ onMounted(() => {
         <!-- Results Info -->
         <div class="results-info">
           <h2>{{ selectedCategoryName }}</h2>
-          <span class="results-count">{{ books.length }} buku</span>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span class="results-count">{{ total.toLocaleString('id-ID') }} buku</span>
+            <select v-model.number="limit" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; border: 1px solid #d1d5db;">
+              <option v-for="n in [10, 20, 50, 100]" :key="n" :value="n">{{ n }} / halaman</option>
+            </select>
+          </div>
         </div>
 
         <!-- Loading -->
@@ -249,6 +297,17 @@ onMounted(() => {
           <p>Tidak ada buku ditemukan</p>
           <button @click="selectCategory(null)" class="reset-btn">Lihat Semua Buku</button>
         </div>
+
+        <!-- Pagination -->
+        <Pagination
+          v-if="!loading && totalPages > 1"
+          :page="page"
+          :total-pages="totalPages"
+          :total="total"
+          :limit="limit"
+          @page-change="onPageChange"
+          style="margin-top: 1.5rem;"
+        />
       </main>
     </div>
 
@@ -301,15 +360,20 @@ onMounted(() => {
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
-  background: white;
-  border-right: 1px solid var(--gray-200, #e5e7eb);
+  width: 240px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
   transition: width 0.2s ease;
 }
 
 .sidebar.collapsed {
   width: 48px;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -753,61 +817,97 @@ onMounted(() => {
   color: var(--gray-600);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 1000;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-  }
-  
-  .sidebar.collapsed {
-    transform: translateX(-100%);
-  }
-  
-  .book-row {
-    grid-template-columns: 80px 1fr 100px;
-  }
-  
-  .row-category,
-  .row-location,
-  .row-eksemplar {
-    display: none;
-  }
+/* ── Mobile Category Toggle Bar ──────────────────────── */
+.mobile-cat-bar { display: none; }
+
+.mobile-cat-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
-@media (max-width: 640px) {
-  .catalog-header {
-    padding: 1.5rem 1rem;
+.mobile-cat-caret {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* ── Desktop: sidebar normal ─────────────────────────── */
+@media (min-width: 769px) {
+  .sidebar { display: block !important; }
+  .mobile-cat-bar { display: none !important; }
+}
+
+/* ── Mobile ≤768px ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .mobile-cat-bar {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: var(--bg-base);
   }
-  
-  .catalog-header h1 {
-    font-size: 1.5rem;
+
+  /* Sidebar jadi bottom drawer di mobile */
+  .sidebar {
+    position: fixed !important;
+    left: 0; right: 0; bottom: 0;
+    top: auto !important;
+    height: 70vh;
+    width: 100% !important;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+    z-index: 1001;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
   }
-  
-  .main-content {
-    padding: 1rem;
+
+  .sidebar.open {
+    transform: translateY(0);
   }
-  
-  .toolbar {
-    flex-direction: column;
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
   }
-  
-  .book-grid {
-    grid-template-columns: 1fr;
-  }
-  
+
+  /* Sembunyikan sidebar di desktop toggle - mobile pakai bottom drawer */
+  .catalog-layout { flex-direction: column; }
+
+  .catalog-header { padding: 1.25rem 1rem; }
+  .catalog-header h1 { font-size: 1.4rem; }
+
+  .main-content { padding: 0.75rem 1rem; }
+
+  .toolbar { flex-direction: column; }
+
+  .book-grid { grid-template-columns: 1fr; }
+
   .book-row {
     grid-template-columns: 1fr auto;
     gap: 0.5rem;
   }
-  
-  .row-code {
-    grid-column: 1 / -1;
-    margin-bottom: 0.25rem;
-  }
+  .row-category, .row-location, .row-eksemplar { display: none; }
+  .row-code { grid-column: 1 / -1; font-size: 0.7rem; margin-bottom: 0.2rem; }
+
+  /* Buku card lebih compact */
+  .book-card { padding: 1rem; }
+  .book-title { font-size: 0.9rem; }
+
+  .results-info { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 }
 </style>

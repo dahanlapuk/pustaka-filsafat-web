@@ -1,11 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getDashboardStats, getTopCategories, getRecentLoans, getRecentActivity, getActivityLogs } from '../api'
+import { getDashboardStats, getTopCategories, getRecentLoans, getRecentActivity, getActivityLogs, getLoanRequests, getDeleteRequests } from '../api'
 import { useAdmin } from '../stores/admin'
 
 const router = useRouter()
-const { greeting, passwordExpired } = useAdmin()
+const { greeting, passwordExpired, currentAdmin, isSuperadmin } = useAdmin()
 
 const stats = ref({
   total_books: 0,
@@ -22,23 +22,35 @@ const topCategories = ref([])
 const recentLoans = ref([])
 const recentActivity = ref([])
 const activityLogs = ref([])
+const pendingLoanRequests = ref(0)
+const pendingDeleteRequests = ref(0)
 const loading = ref(true)
 
 const loadDashboard = async () => {
   loading.value = true
   try {
-    const [statsRes, catRes, loansRes, actRes, logsRes] = await Promise.all([
+    const [statsRes, catRes, loansRes, actRes, logsRes, loanReqRes] = await Promise.all([
       getDashboardStats(),
       getTopCategories(),
       getRecentLoans(),
       getRecentActivity(),
-      getActivityLogs({ limit: 10 })
+      getActivityLogs({ limit: 10 }),
+      getLoanRequests('pending'),
     ])
     stats.value = statsRes.data
     topCategories.value = catRes.data || []
     recentLoans.value = loansRes.data || []
     recentActivity.value = actRes.data || []
     activityLogs.value = logsRes.data || []
+    pendingLoanRequests.value = (loanReqRes.data || []).length
+
+    // Load delete requests hanya jika superadmin
+    if (currentAdmin.value?.is_superadmin) {
+      try {
+        const delRes = await getDeleteRequests('pending')
+        pendingDeleteRequests.value = (delRes.data || []).length
+      } catch {}
+    }
   } catch (err) {
     console.error('Failed to load dashboard:', err)
   } finally {
@@ -243,6 +255,10 @@ onMounted(loadDashboard)
             <span class="action-icon">📋</span>
             Catat Peminjaman
           </button>
+          <button class="action-btn" @click="goTo('/admin/update-posisi')">
+            <span class="action-icon">📍</span>
+            Update Posisi
+          </button>
           <button class="action-btn" @click="goTo('/admin/inventory')">
             <span class="action-icon">📦</span>
             Absen Buku
@@ -252,6 +268,36 @@ onMounted(loadDashboard)
             Cari Buku
           </button>
         </div>
+      </div>
+
+      <!-- Pengajuan Peminjaman & Superadmin Actions -->
+      <div class="secondary-actions">
+        <div class="action-card" @click="goTo('/admin/loan-requests')">
+          <div class="action-card-header">
+            <span class="action-card-icon">📥</span>
+            <h3>Pengajuan Peminjaman</h3>
+            <span v-if="pendingLoanRequests > 0" class="badge-pending">{{ pendingLoanRequests }}</span>
+          </div>
+          <p>Tinjau dan proses pengajuan pinjam dari pengunjung</p>
+        </div>
+
+        <template v-if="isSuperadmin">
+          <div class="action-card danger" @click="goTo('/admin/delete-requests')">
+            <div class="action-card-header">
+              <span class="action-card-icon">🗑️</span>
+              <h3>Pengajuan Hapus Buku</h3>
+              <span v-if="pendingDeleteRequests > 0" class="badge-pending danger">{{ pendingDeleteRequests }}</span>
+            </div>
+            <p>Setujui atau tolak pengajuan penghapusan buku dari admin</p>
+          </div>
+          <div class="action-card" @click="goTo('/admin/panel')">
+            <div class="action-card-header">
+              <span class="action-card-icon">👥</span>
+              <h3>Kelola Admin</h3>
+            </div>
+            <p>Buat, edit, dan hapus akun admin perpustakaan</p>
+          </div>
+        </template>
       </div>
 
       <!-- Activity Logs -->
@@ -371,8 +417,8 @@ onMounted(loadDashboard)
 }
 
 .stat-card.available {
-  border-color: #4caf50;
-  background: #e8f5e9;
+  border-color: var(--success);
+  background: var(--success-bg);
 }
 
 .stat-icon {
@@ -420,8 +466,8 @@ onMounted(loadDashboard)
 }
 
 .mini-stat.warning {
-  border-color: #ff9800;
-  background: #fff3e0;
+  border-color: var(--warning, #ff9800);
+  background: var(--warning-bg, #fff3e0);
 }
 
 .mini-value {
@@ -676,6 +722,76 @@ onMounted(loadDashboard)
 /* Activity Logs */
 .logs-card {
   margin-top: var(--space-5);
+}
+
+/* Secondary Actions (Pengajuan + Superadmin) */
+.secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.action-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-card:hover {
+  border-color: var(--black);
+  transform: translateY(-1px);
+}
+
+.action-card.danger {
+  border-color: var(--danger-border, #fecaca);
+  background: var(--danger-bg);
+}
+
+.action-card.danger:hover {
+  border-color: var(--danger);
+}
+
+.action-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.action-card-icon {
+  font-size: 1.25rem;
+}
+
+.action-card-header h3 {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex: 1;
+}
+
+.action-card p {
+  font-size: 0.8rem;
+  color: var(--gray);
+  line-height: 1.5;
+}
+
+.badge-pending {
+  background: var(--black);
+  color: var(--white);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.badge-pending.danger {
+  background: var(--danger);
 }
 
 .logs-list {

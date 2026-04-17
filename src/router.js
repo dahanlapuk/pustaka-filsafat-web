@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // Public pages
 import PublicCatalog from './pages/PublicCatalog.vue'
+import LoanRequest from './pages/LoanRequest.vue'
 
 // Admin pages
 import AdminLogin from './pages/AdminLogin.vue'
@@ -13,13 +14,24 @@ import Loans from './pages/Loans.vue'
 import Inventory from './pages/Inventory.vue'
 import ActivityLogs from './pages/ActivityLogs.vue'
 import AdminProfile from './pages/AdminProfile.vue'
+import UpdatePosisi from './pages/UpdatePosisi.vue'
+import LoanRequests from './pages/LoanRequests.vue'
+import DeleteRequests from './pages/DeleteRequests.vue'
+import AdminPanel from './pages/AdminPanel.vue'
+import KelolaKategori from './pages/KelolaKategori.vue'
 
 const routes = [
-  // Public route - untuk embed di website prodi
+  // Public routes
   {
     path: '/',
     name: 'PublicCatalog',
     component: PublicCatalog,
+    meta: { public: true }
+  },
+  {
+    path: '/loan-request/:book_id',
+    name: 'LoanRequest',
+    component: LoanRequest,
     meta: { public: true }
   },
 
@@ -63,6 +75,16 @@ const routes = [
     component: Loans
   },
   {
+    path: '/admin/loan-requests',
+    name: 'LoanRequests',
+    component: LoanRequests
+  },
+  {
+    path: '/admin/update-posisi',
+    name: 'UpdatePosisi',
+    component: UpdatePosisi
+  },
+  {
     path: '/admin/inventory',
     name: 'Inventory',
     component: Inventory
@@ -76,7 +98,28 @@ const routes = [
     path: '/admin/profile',
     name: 'AdminProfile',
     component: AdminProfile
-  }
+  },
+
+  // Superadmin-only routes
+  {
+    path: '/admin/delete-requests',
+    name: 'DeleteRequests',
+    component: DeleteRequests,
+    meta: { superadminOnly: true }
+  },
+  {
+    path: '/admin/panel',
+    name: 'AdminPanel',
+    component: AdminPanel,
+    meta: { superadminOnly: true }
+  },
+
+  // Kelola Kategori (admin & superadmin)
+  {
+    path: '/admin/kategori',
+    name: 'KelolaKategori',
+    component: KelolaKategori
+  },
 ]
 
 const router = createRouter({
@@ -86,30 +129,37 @@ const router = createRouter({
 
 // Navigation guard - check auth for admin routes
 router.beforeEach((to, from, next) => {
-  // Check if route requires auth (non-public routes)
   if (!to.meta.public) {
-    // Check localStorage for valid session
     const savedAdmin = localStorage.getItem('currentAdmin')
     const savedTimestamp = localStorage.getItem('loginTimestamp')
-    
+
     if (!savedAdmin || !savedTimestamp) {
-      // No session, redirect to login
       return next({ name: 'AdminLogin', query: { redirect: to.fullPath } })
     }
-    
-    // Check if session is still valid (10 hours)
+
     const timestamp = parseInt(savedTimestamp)
     const now = Date.now()
     const SESSION_DURATION = 10 * 60 * 60 * 1000 // 10 hours
-    
+
     if (now - timestamp >= SESSION_DURATION) {
-      // Session expired, clear and redirect
       localStorage.removeItem('currentAdmin')
       localStorage.removeItem('loginTimestamp')
       return next({ name: 'AdminLogin', query: { expired: 'true', redirect: to.fullPath } })
     }
+
+    // Guard superadmin-only routes
+    if (to.meta.superadminOnly) {
+      try {
+        const admin = JSON.parse(savedAdmin)
+        if (!admin.is_superadmin) {
+          return next({ name: 'Dashboard' })
+        }
+      } catch (e) {
+        return next({ name: 'AdminLogin' })
+      }
+    }
   }
-  
+
   next()
 })
 
