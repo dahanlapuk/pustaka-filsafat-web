@@ -129,20 +129,21 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   if (!to.meta.public) {
     const savedAdmin = localStorage.getItem('currentAdmin')
-    const savedTimestamp = localStorage.getItem('loginTimestamp')
+    const savedToken = localStorage.getItem('sessionToken')
+    const savedExpiresAt = localStorage.getItem('sessionExpiresAt')
 
-    if (!savedAdmin || !savedTimestamp) {
+    if (!savedAdmin || !savedToken) {
       return next({ name: 'AdminLogin', query: { redirect: to.fullPath } })
     }
 
-    const timestamp = parseInt(savedTimestamp)
-    const now = Date.now()
-    const SESSION_DURATION = 10 * 60 * 60 * 1000 // 10 hours
-
-    if (now - timestamp >= SESSION_DURATION) {
-      localStorage.removeItem('currentAdmin')
-      localStorage.removeItem('loginTimestamp')
-      return next({ name: 'AdminLogin', query: { expired: 'true', redirect: to.fullPath } })
+    if (savedExpiresAt) {
+      const expiresAtMs = new Date(savedExpiresAt).getTime()
+      if (Number.isNaN(expiresAtMs) || Date.now() >= expiresAtMs) {
+        localStorage.removeItem('currentAdmin')
+        localStorage.removeItem('sessionToken')
+        localStorage.removeItem('sessionExpiresAt')
+        return next({ name: 'AdminLogin', query: { expired: 'true', redirect: to.fullPath } })
+      }
     }
 
     // Guard superadmin-only routes
@@ -153,6 +154,9 @@ router.beforeEach((to, from, next) => {
           return next({ name: 'Dashboard' })
         }
       } catch (e) {
+          localStorage.removeItem('currentAdmin')
+        localStorage.removeItem('sessionToken')
+        localStorage.removeItem('sessionExpiresAt')
         return next({ name: 'AdminLogin' })
       }
     }

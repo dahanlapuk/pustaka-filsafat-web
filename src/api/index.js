@@ -14,15 +14,8 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const savedAdmin = localStorage.getItem('currentAdmin')
-  const savedTimestamp = localStorage.getItem('loginTimestamp')
-  if (savedAdmin) {
-    try {
-      const admin = JSON.parse(savedAdmin)
-      config.headers['X-Admin-ID'] = admin.id
-      if (savedTimestamp) config.headers['X-Session-Start'] = savedTimestamp
-    } catch (e) {}
-  }
+  const sessionToken = localStorage.getItem('sessionToken')
+  if (sessionToken) config.headers['X-Session-Token'] = sessionToken
   return config
 })
 
@@ -31,7 +24,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('currentAdmin')
-      localStorage.removeItem('loginTimestamp')
+      localStorage.removeItem('sessionToken')
+      localStorage.removeItem('sessionExpiresAt')
       if (!window.location.pathname.includes('/admin/login')) {
         window.location.href = '/admin/login?expired=true'
       }
@@ -79,7 +73,7 @@ const encodePassword = (password) => btoa(unescape(encodeURIComponent(password))
 export const getAdmins = () => api.get('/admins')
 export const getCurrentAdmin = (adminId) => api.get('/admins/current', { params: { admin_id: adminId } })
 export const loginAdmin = (adminId, password) => api.post('/admins/login', { admin_id: adminId, password: encodePassword(password) })
-export const logoutAdmin = (adminId, nama) => api.post('/admins/logout', { admin_id: adminId, nama })
+export const logoutAdmin = () => api.post('/admins/logout', {})
 export const updateProfile = (adminId, data) => api.put(`/admins/${adminId}/profile`, data)
 export const changePassword = (adminId, oldPassword, newPassword) => api.put(`/admins/${adminId}/password`, { old_password: encodePassword(oldPassword), new_password: encodePassword(newPassword) })
 

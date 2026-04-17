@@ -1,36 +1,50 @@
 import { ref, computed } from 'vue'
 import { getAdmins, loginAdmin, logoutAdmin, updateProfile as updateProfileApi, changePassword as changePasswordApi } from '../api'
 
-const SESSION_DURATION = 10 * 60 * 60 * 1000
-
 const currentAdmin = ref(null)
 const adminList = ref([])
 const loading = ref(false)
-const loginTimestamp = ref(null)
+const sessionToken = ref(null)
+const sessionExpiresAt = ref(null)
+
+function clearAuthState() {
+  currentAdmin.value = null
+  sessionToken.value = null
+  sessionExpiresAt.value = null
+  localStorage.removeItem('currentAdmin')
+  localStorage.removeItem('sessionToken')
+  localStorage.removeItem('sessionExpiresAt')
+}
 
 const savedAdmin = localStorage.getItem('currentAdmin')
-const savedTimestamp = localStorage.getItem('loginTimestamp')
-if (savedAdmin && savedTimestamp) {
+const savedToken = localStorage.getItem('sessionToken')
+const savedExpiresAt = localStorage.getItem('sessionExpiresAt')
+if (savedAdmin && savedToken) {
   try {
-    const timestamp = parseInt(savedTimestamp)
-    if (Date.now() - timestamp < SESSION_DURATION) {
-      currentAdmin.value = JSON.parse(savedAdmin)
-      loginTimestamp.value = timestamp
-    } else {
-      localStorage.removeItem('currentAdmin')
-      localStorage.removeItem('loginTimestamp')
+    currentAdmin.value = JSON.parse(savedAdmin)
+    sessionToken.value = savedToken
+
+    if (savedExpiresAt) {
+      const expires = new Date(savedExpiresAt)
+      if (Number.isNaN(expires.getTime()) || Date.now() >= expires.getTime()) {
+        clearAuthState()
+      } else {
+        sessionExpiresAt.value = expires.toISOString()
+      }
     }
   } catch (e) {
-    localStorage.removeItem('currentAdmin')
-    localStorage.removeItem('loginTimestamp')
+    clearAuthState()
   }
 }
 
 function checkSession() {
-  if (!loginTimestamp.value) return false
-  if (Date.now() - loginTimestamp.value >= SESSION_DURATION) {
-    logout()
-    return false
+  if (!currentAdmin.value || !sessionToken.value) return false
+  if (sessionExpiresAt.value) {
+    const expiresAtMs = new Date(sessionExpiresAt.value).getTime()
+    if (!Number.isNaN(expiresAtMs) && Date.now() >= expiresAtMs) {
+      clearAuthState()
+      return false
+    }
   }
   return true
 }
@@ -42,8 +56,10 @@ const adminNickname = computed(() => currentAdmin.value?.nickname || currentAdmi
 const adminId = computed(() => currentAdmin.value?.id || null)
 const passwordExpired = computed(() => currentAdmin.value?.password_expired === true)
 const sessionTimeLeft = computed(() => {
-  if (!loginTimestamp.value) return 0
-  return Math.max(0, SESSION_DURATION - (Date.now() - loginTimestamp.value))
+  if (!sessionExpiresAt.value) return 0
+  const expiresAtMs = new Date(sessionExpiresAt.value).getTime()
+  if (Number.isNaN(expiresAtMs)) return 0
+  return Math.max(0, expiresAtMs - Date.now())
 })
 
 function getGreeting() {
@@ -76,9 +92,22 @@ async function login(adminIdParam, password) {
   try {
     const res = await loginAdmin(adminIdParam, password)
     currentAdmin.value = res.data.admin
-    loginTimestamp.value = Date.now()
+    sessionToken.value = res.data.session_token || null
+    sessionExpiresAt.value = res.data.session_expires_at || null
+
+    if (!sessionToken.value) {
+      clearAuthState()
+      return { success: false, error: 'Token sesi tidak diterima dari server' }
+    }
+
     localStorage.setItem('currentAdmin', JSON.stringify(res.data.admin))
-    localStorage.setItem('loginTimestamp', loginTimestamp.value.toString())
+    localStorage.setItem('sessionToken', sessionToken.value)
+    if (sessionExpiresAt.value) {
+      localStorage.setItem('sessionExpiresAt', sessionExpiresAt.value)
+    } else {
+      localStorage.removeItem('sessionExpiresAt')
+    }
+
     return { success: true }
   } catch (err) {
     return { success: false, error: err.response?.data?.error || 'Login gagal' }
@@ -88,15 +117,12 @@ async function login(adminIdParam, password) {
 }
 
 async function logout() {
-  if (currentAdmin.value) {
+  if (sessionToken.value) {
     try {
-      await logoutAdmin(currentAdmin.value.id, currentAdmin.value.nama)
+      await logoutAdmin()
     } catch (err) {}
   }
-  currentAdmin.value = null
-  loginTimestamp.value = null
-  localStorage.removeItem('currentAdmin')
-  localStorage.removeItem('loginTimestamp')
+  clearAuthState()
   window.location.href = '/admin/login'
 }
 
