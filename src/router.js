@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // Public pages
 import PublicCatalog from './pages/PublicCatalog.vue'
-import LoanRequest from './pages/LoanRequest.vue'
 
 // Admin pages
 import AdminLogin from './pages/AdminLogin.vue'
@@ -28,11 +27,10 @@ const routes = [
     component: PublicCatalog,
     meta: { public: true }
   },
+  // Loan request redirect → ke catalog (form pengajuan ada di halaman buku)
   {
     path: '/loan-request/:book_id',
-    name: 'LoanRequest',
-    component: LoanRequest,
-    meta: { public: true }
+    redirect: to => ({ path: '/', query: { loan: to.params.book_id } })
   },
 
   // Admin login
