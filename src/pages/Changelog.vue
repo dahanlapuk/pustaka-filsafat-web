@@ -68,7 +68,7 @@
         </ul>
 
         <div class="divider"></div>
-        <p class="footer-note">Untuk pertanyaan atau laporan bug, hubungi tim development: <a href="mailto:dev@hexadev.id">dev@hexadev.id</a></p>
+        <p class="footer-note">Untuk pertanyaan atau laporan bug, hubungi tim development: <a href="mailto:itbamuhammadkamil@gmail.com">Hexadev Technologies Mail</a></p>
       </div>
     </main>
   </div>
