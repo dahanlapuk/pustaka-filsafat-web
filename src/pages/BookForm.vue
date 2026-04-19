@@ -18,6 +18,9 @@ const error   = ref(null)
 const success = ref(null)
 
 const categories = ref([])
+const tagInput = ref('')
+const selectedTags = ref([])
+const showSuggestions = ref(false)
 
 const form = ref({
   kode:        '',
@@ -26,6 +29,18 @@ const form = ref({
   posisi_id:   null,
   qty:         1,
   keterangan:  ''
+})
+
+const tagSuggestions = computed(() => {
+  const query = normalizeTagName(tagInput.value).toLowerCase()
+  const selectedSet = new Set(
+    selectedTags.value.map(t => (t.nama || '').toLowerCase())
+  )
+
+  return categories.value
+    .filter(cat => !selectedSet.has((cat.nama || '').toLowerCase()))
+    .filter(cat => !query || (cat.nama || '').toLowerCase().includes(query))
+    .slice(0, 8)
 })
 
 // ── Load data ─────────────────────────────────────────────
@@ -43,6 +58,12 @@ const fetchBook = async () => {
       qty:         book.qty         || 1,
       keterangan:  book.keterangan  || ''
     }
+
+    selectedTags.value = (book.tags || []).map(t => ({
+      id: t.id,
+      nama: t.nama,
+      isNew: false,
+    }))
   } catch {
     error.value = 'Gagal memuat data buku'
   } finally {
@@ -62,6 +83,65 @@ onMounted(() => {
   fetchBook()
 })
 
+const normalizeTagName = (value) => {
+  return (value || '')
+    .trim()
+    .replace(/^#+/, '')
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+}
+
+const isTagSelected = (nama) => {
+  const key = (nama || '').toLowerCase()
+  return selectedTags.value.some(t => (t.nama || '').toLowerCase() === key)
+}
+
+const addTagFromInput = () => {
+  const normalized = normalizeTagName(tagInput.value)
+  if (!normalized) return
+  if (isTagSelected(normalized)) {
+    tagInput.value = ''
+    showSuggestions.value = false
+    return
+  }
+
+  const existing = categories.value.find(c => (c.nama || '').toLowerCase() === normalized.toLowerCase())
+  if (existing) {
+    selectedTags.value.push({ id: existing.id, nama: existing.nama, isNew: false })
+  } else {
+    selectedTags.value.push({ id: null, nama: normalized, isNew: true })
+  }
+
+  tagInput.value = ''
+  showSuggestions.value = false
+}
+
+const addTagSuggestion = (cat) => {
+  if (!cat || isTagSelected(cat.nama)) return
+  selectedTags.value.push({ id: cat.id, nama: cat.nama, isNew: false })
+  tagInput.value = ''
+  showSuggestions.value = false
+}
+
+const removeTag = (index) => {
+  selectedTags.value.splice(index, 1)
+}
+
+const onTagKeydown = (event) => {
+  if (event.key === 'Enter' || event.key === ',') {
+    event.preventDefault()
+    addTagFromInput()
+    return
+  }
+
+  if (event.key === 'Backspace' && !tagInput.value && selectedTags.value.length > 0) {
+    selectedTags.value.pop()
+  }
+}
+
 // ── Submit ────────────────────────────────────────────────
 const handleSubmit = async () => {
   error.value   = null
@@ -78,6 +158,8 @@ const handleSubmit = async () => {
       kode:        form.value.kode.trim() || null,
       judul:       form.value.judul.trim(),
       kategori_id: form.value.kategori_id || null,
+      tag_ids:     selectedTags.value.filter(t => Number.isInteger(t.id)).map(t => t.id),
+      tag_names:   selectedTags.value.filter(t => !Number.isInteger(t.id)).map(t => t.nama),
       posisi_id:   form.value.posisi_id   || null,
       qty:         parseInt(form.value.qty) || 1,
       keterangan:  form.value.keterangan.trim() || null,
@@ -92,6 +174,7 @@ const handleSubmit = async () => {
       await createBook(payload)
       success.value = 'Buku berhasil ditambahkan'
       form.value = { kode: '', judul: '', kategori_id: null, posisi_id: null, qty: 1, keterangan: '' }
+      selectedTags.value = []
     }
     setTimeout(() => router.push('/admin/books'), 1500)
   } catch (e) {
@@ -148,6 +231,42 @@ const handleSubmit = async () => {
           </select>
         </div>
 
+        <div class="form-group">
+          <label class="form-label">Tag Hashtag</label>
+          <div class="tag-input-wrap" @click="$event.currentTarget.querySelector('input')?.focus()">
+            <span
+              v-for="(tag, idx) in selectedTags"
+              :key="`selected-tag-${idx}-${tag.nama}`"
+              class="tag-chip"
+              :class="{ 'tag-chip--new': tag.isNew }"
+            >
+              #{{ tag.nama }}
+              <button type="button" class="tag-chip-remove" @click.stop="removeTag(idx)">×</button>
+            </span>
+            <input
+              v-model="tagInput"
+              type="text"
+              class="tag-input"
+              placeholder="Ketik hashtag lalu Enter, contoh: #fenomenologi"
+              @keydown="onTagKeydown"
+              @focus="showSuggestions = true"
+              @blur="setTimeout(() => { showSuggestions = false }, 120)"
+            />
+          </div>
+          <div v-if="showSuggestions && tagSuggestions.length" class="tag-suggestions">
+            <button
+              type="button"
+              v-for="cat in tagSuggestions"
+              :key="`tag-suggest-${cat.id}`"
+              class="tag-suggestion-item"
+              @mousedown.prevent="addTagSuggestion(cat)"
+            >
+              #{{ cat.nama }}
+            </button>
+          </div>
+          <span class="form-hint">Tag baru boleh diketik bebas, tag lama akan muncul sebagai saran.</span>
+        </div>
+
         <!-- Posisi — PosisiSelector cascading -->
         <div class="form-group">
           <label class="form-label">Posisi Rak</label>
@@ -179,6 +298,82 @@ const handleSubmit = async () => {
   grid-template-columns: 1fr auto;
   gap: 1rem;
   align-items: start;
+}
+
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 0.45rem;
+  border-radius: 8px;
+  min-height: 44px;
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 180px;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0.2rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.tag-chip--new {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-subtle);
+}
+
+.tag-chip-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.tag-suggestions {
+  margin-top: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.tag-suggestion-item {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.tag-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.tag-suggestion-item:hover {
+  background: var(--bg-elevated);
 }
 
 @media (max-width: 480px) {

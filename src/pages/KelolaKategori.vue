@@ -27,7 +27,9 @@ const showProposeModal  = ref(false)
 const showDeleteConfirm = ref(false)
 
 const newNama       = ref('')
+const newGrouping   = ref('')
 const editNama      = ref('')
+const editGrouping  = ref('')
 const editTarget    = ref(null)
 const deleteTarget  = ref(null)
 const proposeNama   = ref('')
@@ -35,6 +37,18 @@ const proposeAlasan = ref('')
 
 const toast         = ref(null)
 const submitting    = ref(false)
+
+const GROUPING_OPTIONS = [
+  { value: '', label: 'Tanpa Group' },
+  { value: 'bentuk', label: 'Bentuk' },
+  { value: 'konten', label: 'Konten' },
+  { value: 'lain', label: 'Lain' },
+]
+
+const groupingLabel = (value) => {
+  const item = GROUPING_OPTIONS.find(opt => opt.value === (value || ''))
+  return item ? item.label : 'Tanpa Group'
+}
 
 // ── Fetch ─────────────────────────────────────────────────
 async function fetchCategories() {
@@ -94,11 +108,13 @@ async function submitAdd() {
   try {
     await createCategory({
       nama: newNama.value.trim(),
+      grouping: newGrouping.value || null,
       admin_id: currentAdmin.value.id,
       admin_nama: currentAdmin.value.nama
     })
     showToast('Kategori berhasil dibuat')
     newNama.value = ''
+    newGrouping.value = ''
     showAddModal.value = false
     fetchCategories()
   } catch (e) {
@@ -112,6 +128,7 @@ async function submitAdd() {
 function openEdit(cat) {
   editTarget.value = cat
   editNama.value = cat.nama
+  editGrouping.value = cat.grouping || ''
   showEditModal.value = true
 }
 
@@ -121,6 +138,7 @@ async function submitEdit() {
   try {
     await updateCategory(editTarget.value.id, {
       nama: editNama.value.trim(),
+      grouping: editGrouping.value || null,
       admin_id: currentAdmin.value.id,
       admin_nama: currentAdmin.value.nama
     })
@@ -277,6 +295,7 @@ function onReqTabChange() {
             <tr>
               <th style="width: 48px;">#</th>
               <th>Nama Kategori</th>
+              <th style="width: 120px;">Grouping</th>
               <th style="width: 100px; text-align: center;">Buku</th>
               <th style="width: 160px;">Aksi</th>
             </tr>
@@ -285,6 +304,9 @@ function onReqTabChange() {
             <tr v-for="(cat, i) in filteredCategories" :key="cat.id">
               <td class="col-id">{{ i + 1 }}</td>
               <td style="font-weight: 500;">{{ cat.nama }}</td>
+              <td>
+                <span class="badge badge-default">{{ groupingLabel(cat.grouping) }}</span>
+              </td>
               <td style="text-align: center;">
                 <span class="badge" :class="cat.book_count > 0 ? 'badge-default' : 'badge-pending'">
                   {{ cat.book_count || 0 }}
@@ -312,6 +334,7 @@ function onReqTabChange() {
         <div v-for="cat in filteredCategories" :key="cat.id" class="mobile-card">
           <div class="mobile-card-title">{{ cat.nama }}</div>
           <div class="mobile-card-meta">
+            <span class="badge badge-default">{{ groupingLabel(cat.grouping) }}</span>
             <span class="badge" :class="cat.book_count > 0 ? 'badge-default' : 'badge-pending'">
               {{ cat.book_count || 0 }} buku
             </span>
@@ -404,6 +427,12 @@ function onReqTabChange() {
             <label class="form-label">Nama Kategori *</label>
             <input v-model="newNama" type="text" placeholder="Contoh: Buku Sosial" @keyup.enter="submitAdd" />
           </div>
+          <div class="form-group">
+            <label class="form-label">Grouping</label>
+            <select v-model="newGrouping">
+              <option v-for="opt in GROUPING_OPTIONS" :key="`new-${opt.value || 'none'}`" :value="opt.value">{{ opt.label }}</option>
+            </select>
+          </div>
           <div class="modal-actions">
             <button class="btn btn-secondary" @click="showAddModal = false" :disabled="submitting">Batal</button>
             <button class="btn btn-primary" @click="submitAdd" :disabled="submitting || !newNama.trim()">
@@ -422,6 +451,12 @@ function onReqTabChange() {
           <div class="form-group">
             <label class="form-label">Nama Kategori *</label>
             <input v-model="editNama" type="text" @keyup.enter="submitEdit" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Grouping</label>
+            <select v-model="editGrouping">
+              <option v-for="opt in GROUPING_OPTIONS" :key="`edit-${opt.value || 'none'}`" :value="opt.value">{{ opt.label }}</option>
+            </select>
           </div>
           <div class="modal-actions">
             <button class="btn btn-secondary" @click="showEditModal = false" :disabled="submitting">Batal</button>

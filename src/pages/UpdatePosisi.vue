@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getBooks, getPosisi, batchUpdatePosisi, updateBook } from '../api'
+import { getBooks, getPosisi, batchUpdatePosisi, updateBook, getBookStockBreakdown, updateBookStockBreakdown } from '../api'
 import { useAdmin } from '../stores/admin'
 import PosisiSelector from '../components/PosisiSelector.vue'
 
@@ -30,18 +30,49 @@ const targetPosisiId = ref(null)
 // { bookId: expandedState }
 const expandedBook = ref(null)
 const inlinePosisiId = ref(null)   // posisi_id yang sedang dipilih
+const splitRows = ref([])
+const splitLoading = ref(false)
+const splitSaving = ref(false)
+const splitBookQty = ref(1)
+
+const BOOKS_PAGE_LIMIT = 200
 
 // ── Load data ─────────────────────────────────────────────
 onMounted(async () => {
   try {
-    // limit=1000 untuk UpdatePosisi karena butuh semua buku
-    const [booksRes, posRes] = await Promise.all([getBooks({ limit: 1000 }), getPosisi()])
-    allBooks.value   = booksRes.data?.data || booksRes.data || []
+    const [books, posRes] = await Promise.all([loadAllBooks(), getPosisi()])
+    allBooks.value = books
     posisiList.value = posRes.data || []
+  } catch (e) {
+    console.error('Gagal memuat data update posisi:', e)
+    showToast('Gagal memuat daftar buku. Coba refresh halaman.', 'error')
   } finally {
     loading.value = false
   }
 })
+
+const loadAllBooks = async () => {
+  const books = []
+  let page = 1
+  let totalPages = 1
+  let safety = 0
+
+  do {
+    const res = await getBooks({ page, limit: BOOKS_PAGE_LIMIT })
+    const payload = res?.data || {}
+    const items = Array.isArray(payload) ? payload : (payload.data || [])
+    books.push(...items)
+
+    totalPages = Array.isArray(payload) ? 1 : (payload.total_pages || 1)
+    page += 1
+    safety += 1
+
+    // Guard against unexpected pagination contract loops.
+    if (safety > 500) break
+  } while (page <= totalPages)
+
+  return books
+}
 
 // ── Computed ──────────────────────────────────────────────
 const kategoriList = computed(() => {
@@ -56,7 +87,8 @@ const filteredBooks = computed(() =>
     const matchK   = !filterKategori.value || b.kategori_nama === filterKategori.value
     const matchKata = !filterKata.value ||
       b.judul?.toLowerCase().includes(filterKata.value.toLowerCase()) ||
-      b.kode?.toLowerCase().includes(filterKata.value.toLowerCase())
+      b.kode?.toLowerCase().includes(filterKata.value.toLowerCase()) ||
+      b.kategori_nama?.toLowerCase().includes(filterKata.value.toLowerCase())
     return matchP && matchK && matchKata
   })
 )
@@ -65,6 +97,9 @@ const selectedCount = computed(() => selectedIds.value.size)
 const allSelected   = computed(() =>
   filteredBooks.value.length > 0 &&
   filteredBooks.value.every(b => selectedIds.value.has(b.id))
+)
+const splitTotalQty = computed(() =>
+  splitRows.value.reduce((sum, row) => sum + (Number(row.qty) || 0), 0)
 )
 
 // ── Seleksi ───────────────────────────────────────────────
@@ -83,13 +118,126 @@ const toggleSelectAll = () => {
 
 const clearSelection = () => { selectedIds.value = new Set() }
 
+const getBookQty = (book) => {
+  const qty = Number(book?.qty)
+  if (!Number.isFinite(qty) || qty < 1) return 1
+  return Math.floor(qty)
+}
+
+const resetSplitState = () => {
+  splitRows.value = []
+  splitLoading.value = false
+  splitSaving.value = false
+  splitBookQty.value = 1
+}
+
+const upsertLocalBookPosisi = (book, dominantPosisiId) => {
+  const b = allBooks.value.find(x => x.id === book.id)
+  if (!b) return
+  b.posisi_id = dominantPosisiId || null
+  const p = posisiList.value.find(x => x.id == dominantPosisiId)
+  b.posisi_kode = p?.kode || ''
+  b.posisi_rak = p?.rak || ''
+}
+
+const loadSplitForBook = async (book) => {
+  splitLoading.value = true
+  splitRows.value = []
+  splitBookQty.value = getBookQty(book)
+
+  try {
+    const res = await getBookStockBreakdown(book.id)
+    const payload = res?.data || {}
+    const allocations = Array.isArray(payload.allocations) ? payload.allocations : []
+    splitBookQty.value = Number(payload.book_qty) || getBookQty(book)
+
+    const mapped = allocations
+      .filter(a => (Number(a.qty) || 0) > 0)
+      .map(a => ({ posisi_id: a.posisi_id ?? null, qty: Number(a.qty) || 0 }))
+
+    if (mapped.length === 0) {
+      splitRows.value = [{ posisi_id: book.posisi_id ?? null, qty: splitBookQty.value }]
+    } else {
+      splitRows.value = mapped
+    }
+  } catch (e) {
+    splitRows.value = [{ posisi_id: book.posisi_id ?? null, qty: splitBookQty.value }]
+    showToast('Distribusi stok belum ada, pakai data posisi utama dulu', 'error')
+  } finally {
+    splitLoading.value = false
+  }
+}
+
 // ── Inline: buka panel posisi selector ───────────────────
-const openInlineEdit = (book) => {
-  expandedBook.value = expandedBook.value === book.id ? null : book.id
+const openInlineEdit = async (book) => {
+  if (expandedBook.value === book.id) {
+    expandedBook.value = null
+    resetSplitState()
+    return
+  }
+
+  expandedBook.value = book.id
   inlinePosisiId.value = book.posisi_id ?? null
+
+  if (getBookQty(book) > 1) {
+    await loadSplitForBook(book)
+  } else {
+    resetSplitState()
+  }
 }
 
 const saveInline = async (book) => {
+  if (getBookQty(book) > 1) {
+    const targetQty = splitBookQty.value
+    if (splitRows.value.length === 0) {
+      showToast('Tambahkan minimal satu alokasi posisi', 'error')
+      return
+    }
+
+    const invalidQty = splitRows.value.some(row => !Number.isFinite(Number(row.qty)) || Number(row.qty) < 0)
+    if (invalidQty) {
+      showToast('Qty alokasi harus angka 0 atau lebih', 'error')
+      return
+    }
+
+    const invalidPosisi = splitRows.value.some(row => !row.posisi_id && Number(row.qty) > 0)
+    if (invalidPosisi) {
+      showToast('Pilih posisi untuk semua alokasi yang qty > 0', 'error')
+      return
+    }
+
+    if (splitTotalQty.value !== targetQty) {
+      showToast(`Total alokasi harus sama dengan qty buku (${targetQty})`, 'error')
+      return
+    }
+
+    splitSaving.value = true
+    try {
+      await updateBookStockBreakdown(book.id, {
+        allocations: splitRows.value.map(row => ({
+          posisi_id: row.posisi_id ? Number(row.posisi_id) : null,
+          qty: Number(row.qty) || 0,
+        })),
+        admin_id: currentAdmin.value?.id,
+        admin_nama: currentAdmin.value?.nama,
+      })
+
+      const dominant = [...splitRows.value]
+        .filter(row => (Number(row.qty) || 0) > 0)
+        .sort((a, b) => (Number(b.qty) || 0) - (Number(a.qty) || 0))[0]
+
+      upsertLocalBookPosisi(book, dominant?.posisi_id || null)
+      showToast(`Split posisi untuk "${book.judul.slice(0, 30)}..." diperbarui`)
+      expandedBook.value = null
+      resetSplitState()
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Gagal menyimpan split posisi', 'error')
+    } finally {
+      splitSaving.value = false
+    }
+    return
+  }
+
   if (!inlinePosisiId.value || inlinePosisiId.value == book.posisi_id) {
     expandedBook.value = null
     return
@@ -102,13 +250,7 @@ const saveInline = async (book) => {
       admin_id:    currentAdmin.value?.id,
       admin_nama:  currentAdmin.value?.nama,
     })
-    const b = allBooks.value.find(x => x.id === book.id)
-    if (b) {
-      b.posisi_id = inlinePosisiId.value
-      const p = posisiList.value.find(x => x.id == inlinePosisiId.value)
-      b.posisi_kode = p?.kode || ''
-      b.posisi_rak  = p?.rak  || ''
-    }
+    upsertLocalBookPosisi(book, inlinePosisiId.value)
     showToast(`Posisi "${book.judul.slice(0, 30)}..." diperbarui`)
     expandedBook.value = null
   } catch (e) {
@@ -152,6 +294,15 @@ const saveBatch = async () => {
 const showToast = (msg, type = 'success') => {
   toast.value = { msg, type }
   setTimeout(() => { toast.value = null }, 3500)
+}
+
+const addSplitRow = () => {
+  splitRows.value.push({ posisi_id: null, qty: 0 })
+}
+
+const removeSplitRow = (index) => {
+  if (splitRows.value.length <= 1) return
+  splitRows.value.splice(index, 1)
 }
 </script>
 
@@ -241,13 +392,14 @@ const showToast = (msg, type = 'success') => {
               <th style="width: 90px;">Kode</th>
               <th>Judul</th>
               <th style="width: 130px;">Kategori</th>
+              <th style="width: 80px;">Qty</th>
               <th style="width: 130px;">Posisi Saat Ini</th>
               <th v-if="mode === 'inline'" style="width: 90px;">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="filteredBooks.length === 0">
-              <tr><td :colspan="mode === 'batch' ? 5 : 6" class="empty-state" style="padding: 2rem;">Tidak ada buku ditemukan</td></tr>
+              <tr><td :colspan="6" class="empty-state" style="padding: 2rem;">Tidak ada buku ditemukan</td></tr>
             </template>
 
             <template v-for="book in filteredBooks" :key="book.id">
@@ -261,6 +413,9 @@ const showToast = (msg, type = 'success') => {
                 <td style="font-weight: 500; max-width: 300px;">{{ book.judul }}</td>
                 <td>
                   <span class="badge badge-default" style="font-size: 0.7rem;">{{ book.kategori_nama || '—' }}</span>
+                </td>
+                <td>
+                  <span class="badge badge-default" style="font-size: 0.7rem;">{{ getBookQty(book) }}</span>
                 </td>
                 <td>
                   <span v-if="book.posisi_kode" class="posisi-code">{{ book.posisi_kode }}</span>
@@ -282,11 +437,46 @@ const showToast = (msg, type = 'success') => {
                 <td colspan="6" style="padding: 1rem 1rem 1rem 2rem; background: var(--bg-elevated);">
                   <div style="max-width: 700px;">
                     <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;">
-                      Pilih posisi baru untuk: <em style="text-transform: none; font-weight: 400;">{{ book.judul }}</em>
+                      {{ getBookQty(book) > 1 ? 'Split posisi untuk' : 'Pilih posisi baru untuk' }}: <em style="text-transform: none; font-weight: 400;">{{ book.judul }}</em>
                     </div>
-                    <PosisiSelector v-model="inlinePosisiId" />
+
+                    <template v-if="getBookQty(book) > 1">
+                      <div v-if="splitLoading" class="loading-state" style="padding: 0.5rem 0;">Memuat distribusi stok...</div>
+                      <template v-else>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                          Buku ini punya {{ splitBookQty }} eksemplar. Atur pembagian per posisi, total harus pas {{ splitBookQty }}.
+                        </p>
+
+                        <div class="split-grid-head">
+                          <span>Posisi</span>
+                          <span>Qty</span>
+                          <span>Aksi</span>
+                        </div>
+
+                        <div v-for="(row, idx) in splitRows" :key="`split-${book.id}-${idx}`" class="split-row">
+                          <select v-model="row.posisi_id" class="split-select">
+                            <option :value="null">— Pilih Posisi —</option>
+                            <option v-for="p in posisiList" :key="p.id" :value="p.id">{{ p.kode }}</option>
+                          </select>
+                          <input v-model.number="row.qty" class="split-qty" type="number" min="0" step="1" />
+                          <button class="btn btn-ghost btn-sm" :disabled="splitRows.length <= 1" @click="removeSplitRow(idx)">Hapus</button>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
+                          <button class="btn btn-secondary btn-sm" @click="addSplitRow">+ Tambah Baris Posisi</button>
+                          <span :style="{ fontSize: '0.82rem', fontWeight: 700, color: splitTotalQty === splitBookQty ? 'var(--text-primary)' : 'var(--danger)' }">
+                            Total Alokasi: {{ splitTotalQty }} / {{ splitBookQty }}
+                          </span>
+                        </div>
+                      </template>
+                    </template>
+
+                    <template v-else>
+                      <PosisiSelector v-model="inlinePosisiId" />
+                    </template>
+
                     <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
-                      <button class="btn btn-primary" @click="saveInline(book)">Simpan</button>
+                      <button class="btn btn-primary" :disabled="splitSaving" @click="saveInline(book)">{{ splitSaving ? 'Menyimpan...' : 'Simpan' }}</button>
                       <button class="btn btn-ghost" @click="expandedBook = null">Batal</button>
                     </div>
                   </div>
@@ -323,6 +513,36 @@ const showToast = (msg, type = 'success') => {
 .row-selected td { background: var(--accent-subtle) !important; }
 .expanded-row td  { border-bottom: 2px solid var(--border-medium); }
 
+.split-grid-head,
+.split-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 90px 80px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.split-grid-head {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.split-row + .split-row {
+  margin-top: 0.45rem;
+}
+
+.split-select,
+.split-qty {
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+}
+
 .toast-fade-enter-active, .toast-fade-leave-active { transition: all 0.3s; }
 .toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateX(1rem); }
 
@@ -330,5 +550,9 @@ const showToast = (msg, type = 'success') => {
 @media (max-width: 768px) {
   .posisi-layout { flex-direction: column; }
   .filter-sidebar { width: 100%; position: static; }
+  .split-grid-head,
+  .split-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

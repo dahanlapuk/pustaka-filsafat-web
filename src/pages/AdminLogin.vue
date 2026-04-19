@@ -162,7 +162,7 @@ async function handleLogin() {
   font-family: var(--font-heading);
   font-size: 2rem;
   font-weight: 700;
-  color: var(--black);
+  color: var(--text-primary);
   letter-spacing: 0.05em;
   margin-bottom: var(--space-2);
 }
@@ -224,7 +224,7 @@ async function handleLogin() {
 
 .admin-name {
   font-weight: 600;
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .admin-title {
@@ -259,7 +259,7 @@ async function handleLogin() {
 }
 
 .link:hover {
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .alert {
@@ -325,6 +325,6 @@ async function handleLogin() {
 }
 
 .password-toggle:hover {
-  color: var(--black);
+  color: var(--text-primary);
 }
 </style>

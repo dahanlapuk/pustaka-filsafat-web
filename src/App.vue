@@ -61,7 +61,7 @@ const isAdminPage = computed(() => route.path.startsWith('/admin') && !route.met
 }
 
 .footer-right strong {
-  color: var(--black);
+  color: var(--text-primary);
   font-weight: 600;
 }
 </style>

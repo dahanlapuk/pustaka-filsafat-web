@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getDashboardStats, getTopCategories, getRecentLoans, getRecentActivity, getActivityLogs, getLoanRequests, getDeleteRequests } from '../api'
+import { getDashboardStats, getRecentLoans, getActivityLogs, getLoanRequests, getDeleteRequests } from '../api'
 import { useAdmin } from '../stores/admin'
 
 const router = useRouter()
@@ -18,10 +18,8 @@ const stats = ref({
   checked_today: 0
 })
 
-const topCategories = ref([])
 const recentLoans = ref([])
 const recentActivity = ref([])
-const activityLogs = ref([])
 const pendingLoanRequests = ref(0)
 const pendingDeleteRequests = ref(0)
 const loading = ref(true)
@@ -29,19 +27,15 @@ const loading = ref(true)
 const loadDashboard = async () => {
   loading.value = true
   try {
-    const [statsRes, catRes, loansRes, actRes, logsRes, loanReqRes] = await Promise.all([
+    const [statsRes, loansRes, logsRes, loanReqRes] = await Promise.all([
       getDashboardStats(),
-      getTopCategories(),
       getRecentLoans(),
-      getRecentActivity(),
       getActivityLogs({ limit: 10 }),
       getLoanRequests('pending'),
     ])
     stats.value = statsRes.data
-    topCategories.value = catRes.data || []
     recentLoans.value = loansRes.data || []
-    recentActivity.value = actRes.data || []
-    activityLogs.value = logsRes.data || []
+    recentActivity.value = logsRes.data || []
     pendingLoanRequests.value = (loanReqRes.data || []).length
 
     // Load delete requests hanya jika superadmin
@@ -62,14 +56,6 @@ const formatDate = (date) => {
   if (!date) return '-'
   return new Date(date).toLocaleString('id-ID', {
     day: 'numeric',
-    month: 'short'
-  })
-}
-
-const formatDateTime = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleString('id-ID', {
-    day: 'numeric',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit'
@@ -78,28 +64,32 @@ const formatDateTime = (date) => {
 
 const actionLabel = (action) => {
   const labels = {
-    'CREATE': 'Tambah',
-    'UPDATE': 'Ubah',
-    'DELETE': 'Hapus',
-    'DELETE_REQUEST': 'Request Hapus',
-    'POSITION_CHANGE': 'Ubah Posisi',
-    'INVENTORY_CHECK': 'Absen',
-    'LOGIN': 'Login'
+    CREATE: 'Tambah',
+    UPDATE: 'Ubah',
+    DELETE: 'Hapus',
+    DELETE_REQUEST: 'Req Hapus',
+    POSITION_CHANGE: 'Ubah Posisi',
+    INVENTORY_CHECK: 'Absen',
+    LOGIN: 'Login',
+    LOGOUT: 'Logout',
+    LOGIN_FAILED: 'Login Gagal',
+    CHANGE_PASSWORD: 'Ubah Password',
+    INVENTORY_TRANSFER: 'Transfer Stok',
   }
-  return labels[action] || action
+  return labels[action] || action || 'Aktivitas'
 }
 
-const actionIcon = (action) => {
-  const icons = {
-    'CREATE': '➕',
-    'UPDATE': '✏️',
-    'DELETE': '🗑️',
-    'DELETE_REQUEST': '⚠️',
-    'POSITION_CHANGE': '📍',
-    'INVENTORY_CHECK': '✅',
-    'LOGIN': '🔐'
-  }
-  return icons[action] || '📋'
+const quickIcon = (action) => {
+  if (action === 'CREATE') return '➕'
+  if (action === 'DELETE' || action === 'DELETE_REQUEST') return '🗑️'
+  if (action === 'LOGIN' || action === 'LOGOUT' || action === 'LOGIN_FAILED') return '🔐'
+  if (action === 'INVENTORY_CHECK' || action === 'INVENTORY_TRANSFER') return '📦'
+  return '📝'
+}
+
+const quickTitle = (log) => {
+  const target = log.entity_name || log.entity_type || 'Sistem'
+  return `${actionLabel(log.action)} • ${target}`
 }
 
 const goTo = (path) => {
@@ -184,22 +174,6 @@ onMounted(loadDashboard)
 
       <!-- Content Grid -->
       <div class="content-grid">
-        <!-- Top Categories -->
-        <section class="card">
-          <h2>Kategori Terbanyak</h2>
-          <div class="category-list">
-            <div 
-              v-for="(cat, idx) in topCategories" 
-              :key="cat.nama" 
-              class="category-item"
-            >
-              <span class="category-rank">{{ idx + 1 }}</span>
-              <span class="category-name">{{ cat.nama }}</span>
-              <span class="category-count">{{ cat.count }}</span>
-            </div>
-          </div>
-        </section>
-
         <!-- Recent Loans -->
         <section class="card">
           <div class="card-header">
@@ -222,20 +196,22 @@ onMounted(loadDashboard)
 
         <!-- Recent Activity -->
         <section class="card">
-          <h2>Aktivitas Terbaru</h2>
+          <div class="card-header">
+            <h2>Aktivitas Terbaru</h2>
+            <button class="btn-link" @click="goTo('/admin/logs')">Lihat Log Admin →</button>
+          </div>
           <div v-if="recentActivity.length === 0" class="empty-card">
             Belum ada aktivitas
           </div>
           <div v-else class="activity-list">
-            <div v-for="(act, idx) in recentActivity" :key="idx" class="activity-item">
+            <div v-for="act in recentActivity" :key="act.id" class="activity-item">
               <span class="activity-icon">
-                {{ act.type === 'book_added' ? '📗' : '✅' }}
+                {{ quickIcon(act.action) }}
               </span>
               <div class="activity-content">
-                <span class="activity-title">{{ act.title }}</span>
+                <span class="activity-title">{{ quickTitle(act) }}</span>
                 <span class="activity-meta">
-                  {{ act.type === 'book_added' ? 'Ditambahkan' : 'Dicek oleh ' + (act.actor || '-') }}
-                  • {{ formatDate(act.time) }}
+                  {{ act.admin_nama || 'System' }} • {{ formatDate(act.created_at) }}
                 </span>
               </div>
             </div>
@@ -300,31 +276,6 @@ onMounted(loadDashboard)
         </template>
       </div>
 
-      <!-- Activity Logs -->
-      <section class="card logs-card">
-        <div class="card-header">
-          <h2>Log Aktivitas Admin</h2>
-          <button class="btn-link" @click="goTo('/admin/logs')">Lihat Semua →</button>
-        </div>
-        <div v-if="activityLogs.length === 0" class="empty-card">
-          Belum ada log aktivitas
-        </div>
-        <div v-else class="logs-list">
-          <div v-for="log in activityLogs" :key="log.id" class="log-item">
-            <span class="log-icon">{{ actionIcon(log.action) }}</span>
-            <div class="log-content">
-              <div class="log-main">
-                <span class="log-action">{{ actionLabel(log.action) }}</span>
-                <span v-if="log.entity_name" class="log-entity">{{ log.entity_name }}</span>
-              </div>
-              <div class="log-meta">
-                <span class="log-admin">{{ log.admin_nama }}</span>
-                <span class="log-time">{{ formatDateTime(log.created_at) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   </div>
 </template>
@@ -350,23 +301,23 @@ onMounted(loadDashboard)
 }
 
 .greeting-section p {
-  color: var(--gray);
+  color: var(--text-secondary);
   font-size: 0.875rem;
 }
 
 .profile-link {
   padding: 0.5rem 1rem;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--border-medium);
   border-radius: var(--radius);
   font-size: 0.875rem;
-  color: var(--gray-700);
+  color: var(--text-primary);
   text-decoration: none;
   transition: all 0.2s;
 }
 
 .profile-link:hover {
-  background: var(--gray-100);
-  border-color: var(--gray-400);
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
 }
 
 .alert {
@@ -376,9 +327,9 @@ onMounted(loadDashboard)
 }
 
 .alert-warning {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  color: var(--warning);
 }
 
 .alert-warning a {
@@ -389,7 +340,7 @@ onMounted(loadDashboard)
 .loading {
   text-align: center;
   padding: 4rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 /* Stats Grid */
@@ -401,7 +352,7 @@ onMounted(loadDashboard)
 }
 
 .stat-card {
-  background: var(--white);
+  background: var(--bg-surface);
   border: 2px solid var(--border);
   padding: 1.5rem;
   display: flex;
@@ -412,7 +363,7 @@ onMounted(loadDashboard)
 }
 
 .stat-card:hover {
-  border-color: var(--black);
+  border-color: var(--border-strong);
   transform: translateY(-2px);
 }
 
@@ -439,7 +390,7 @@ onMounted(loadDashboard)
 
 .stat-label {
   font-size: 0.875rem;
-  color: var(--gray);
+  color: var(--text-secondary);
   margin-top: 0.25rem;
 }
 
@@ -452,7 +403,7 @@ onMounted(loadDashboard)
 
 .mini-stat {
   flex: 1;
-  background: var(--white);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   padding: 1rem;
   display: flex;
@@ -462,12 +413,12 @@ onMounted(loadDashboard)
 }
 
 .mini-stat:hover {
-  border-color: var(--black);
+  border-color: var(--border-strong);
 }
 
 .mini-stat.warning {
-  border-color: var(--warning, #ff9800);
-  background: var(--warning-bg, #fff3e0);
+  border-color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .mini-value {
@@ -478,19 +429,19 @@ onMounted(loadDashboard)
 
 .mini-label {
   font-size: 0.875rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 /* Content Grid */
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .card {
-  background: var(--white);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   padding: 1.5rem;
 }
@@ -528,7 +479,7 @@ onMounted(loadDashboard)
 }
 
 .empty-card {
-  color: var(--gray);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   text-align: center;
   padding: 2rem;
@@ -556,8 +507,8 @@ onMounted(loadDashboard)
 .category-rank {
   width: 24px;
   height: 24px;
-  background: var(--black);
-  color: var(--white);
+  background: var(--text-primary);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -608,12 +559,12 @@ onMounted(loadDashboard)
 
 .loan-borrower {
   font-size: 0.75rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 .loan-date {
   font-size: 0.75rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 /* Activity List */
@@ -646,12 +597,12 @@ onMounted(loadDashboard)
 
 .activity-meta {
   font-size: 0.75rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 /* Quick Actions */
 .quick-actions {
-  background: var(--white);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   padding: 1.5rem;
 }
@@ -677,8 +628,8 @@ onMounted(loadDashboard)
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem;
-  background: var(--black);
-  color: var(--white);
+  background: var(--text-primary);
+  color: var(--text-inverse);
   border: none;
   font-size: 0.875rem;
   font-weight: 600;
@@ -719,11 +670,6 @@ onMounted(loadDashboard)
   }
 }
 
-/* Activity Logs */
-.logs-card {
-  margin-top: var(--space-5);
-}
-
 /* Secondary Actions (Pengajuan + Superadmin) */
 .secondary-actions {
   display: grid;
@@ -734,7 +680,7 @@ onMounted(loadDashboard)
 }
 
 .action-card {
-  background: var(--white);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   padding: 1.25rem;
   cursor: pointer;
@@ -742,12 +688,12 @@ onMounted(loadDashboard)
 }
 
 .action-card:hover {
-  border-color: var(--black);
+  border-color: var(--border-strong);
   transform: translateY(-1px);
 }
 
 .action-card.danger {
-  border-color: var(--danger-border, #fecaca);
+  border-color: var(--danger);
   background: var(--danger-bg);
 }
 
@@ -775,13 +721,13 @@ onMounted(loadDashboard)
 
 .action-card p {
   font-size: 0.8rem;
-  color: var(--gray);
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
 .badge-pending {
-  background: var(--black);
-  color: var(--white);
+  background: var(--text-primary);
+  color: var(--text-inverse);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 0.15rem 0.5rem;
@@ -805,7 +751,7 @@ onMounted(loadDashboard)
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3);
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--border);
 }
 
 .log-item:last-child {
@@ -832,13 +778,13 @@ onMounted(loadDashboard)
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  background: var(--gray-100);
+  background: var(--bg-elevated);
   padding: 2px 6px;
 }
 
 .log-entity {
   font-weight: 500;
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .log-meta {
@@ -846,11 +792,11 @@ onMounted(loadDashboard)
   gap: var(--space-3);
   margin-top: var(--space-1);
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .log-admin {
   font-weight: 500;
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 </style>

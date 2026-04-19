@@ -5,6 +5,7 @@ import { getActivityLogs, getLogStats } from '../api'
 const logs = ref([])
 const stats = ref(null)
 const loading = ref(true)
+const loadError = ref('')
 const filter = ref({
   entity_type: '',
   action: ''
@@ -19,6 +20,7 @@ onMounted(async () => {
 
 async function fetchLogs() {
   loading.value = true
+  loadError.value = ''
   try {
     const params = {}
     if (filter.value.entity_type) params.entity_type = filter.value.entity_type
@@ -27,6 +29,8 @@ async function fetchLogs() {
     logs.value = res.data
   } catch (err) {
     console.error(err)
+    loadError.value = err?.response?.data?.error || 'Gagal memuat log aktivitas'
+    logs.value = []
   } finally {
     loading.value = false
   }
@@ -38,6 +42,9 @@ async function fetchStats() {
     stats.value = res.data
   } catch (err) {
     console.error(err)
+    if (!loadError.value) {
+      loadError.value = err?.response?.data?.error || 'Gagal memuat statistik log'
+    }
   }
 }
 
@@ -239,6 +246,10 @@ function formatDetails(log) {
       <p>Memuat log...</p>
     </div>
 
+    <div v-else-if="loadError" class="error-box">
+      {{ loadError }}
+    </div>
+
     <div v-else class="logs-table-wrapper">
       <table class="logs-table">
         <thead>
@@ -292,7 +303,7 @@ function formatDetails(log) {
 }
 
 .page-subtitle {
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin-bottom: var(--space-5);
 }
 
@@ -304,8 +315,8 @@ function formatDetails(log) {
 }
 
 .stat-card {
-  background: var(--white);
-  border: 2px solid var(--black);
+  background: var(--bg-surface);
+  border: 2px solid var(--border);
   padding: var(--space-4);
   text-align: center;
 }
@@ -320,7 +331,7 @@ function formatDetails(log) {
 .stat-label {
   display: block;
   font-size: 0.75rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: var(--space-1);
@@ -339,8 +350,8 @@ function formatDetails(log) {
 
 .logs-table-wrapper {
   overflow-x: auto;
-  background: var(--white);
-  border: 2px solid var(--black);
+  background: var(--bg-surface);
+  border: 2px solid var(--border);
 }
 
 .logs-table {
@@ -352,12 +363,12 @@ function formatDetails(log) {
 .logs-table td {
   padding: var(--space-3);
   text-align: left;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--border);
 }
 
 .logs-table th {
-  background: var(--black);
-  color: var(--white);
+  background: var(--text-primary);
+  color: var(--text-inverse);
   font-family: var(--font-heading);
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -365,13 +376,13 @@ function formatDetails(log) {
 }
 
 .logs-table tbody tr:hover {
-  background: var(--gray-50);
+  background: var(--bg-elevated);
 }
 
 .cell-time {
   white-space: nowrap;
   font-size: 0.875rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 .cell-admin {
@@ -385,19 +396,19 @@ function formatDetails(log) {
   font-weight: 500;
 }
 
-.badge-create { background: #d4edda; color: #155724; }
-.badge-update { background: #fff3cd; color: #856404; }
-.badge-delete { background: #f8d7da; color: #721c24; }
-.badge-delete-req { background: #f5c6cb; color: #721c24; border: 1px dashed #721c24; }
-.badge-position { background: #cce5ff; color: #004085; }
-.badge-inventory { background: #d1ecf1; color: #0c5460; }
-.badge-login { background: #e2e3e5; color: #383d41; }
-.badge-logout { background: #d6d8db; color: #1b1e21; }
+.badge-create { background: var(--success-bg); color: var(--success); }
+.badge-update { background: var(--warning-bg); color: var(--warning); }
+.badge-delete { background: var(--danger-bg); color: var(--danger); }
+.badge-delete-req { background: var(--danger-bg); color: var(--danger); border: 1px dashed var(--danger); }
+.badge-position { background: var(--info-bg); color: var(--info); }
+.badge-inventory { background: var(--accent-subtle); color: var(--accent); }
+.badge-login { background: var(--bg-elevated); color: var(--text-secondary); }
+.badge-logout { background: var(--bg-elevated); color: var(--text-secondary); }
 
 .entity-type {
   display: block;
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -412,21 +423,29 @@ function formatDetails(log) {
 
 .details-text {
   font-size: 0.85rem;
-  color: var(--gray-700);
+  color: var(--text-secondary);
 }
 
 .no-details {
-  color: var(--gray-400);
+  color: var(--text-muted);
 }
 
 .empty-state {
   text-align: center;
   padding: var(--space-8) !important;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .loading {
   text-align: center;
   padding: var(--space-8);
+}
+
+.error-box {
+  border: 2px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 </style>

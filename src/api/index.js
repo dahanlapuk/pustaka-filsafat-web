@@ -35,7 +35,8 @@ api.interceptors.response.use(
 )
 
 export const getBooks = (params = {}) => api.get('/books', { params })
-export const searchBooks = (q, page = 1, limit = 20) => api.get('/books/search', { params: { q, page, limit } })
+export const searchBooks = (q, page = 1, limit = 20, extraParams = {}) =>
+  api.get('/books/search', { params: { q, page, limit, ...extraParams } })
 export const getBook = (id) => api.get(`/books/${id}`)
 export const createBook = (data) => api.post('/books', data)
 export const updateBook = (id, data) => api.put(`/books/${id}`, data)
@@ -56,12 +57,26 @@ export const getPosisi = () => api.get('/posisi')
 export const getPosisiStruktur = () => api.get('/posisi/struktur')
 
 export const getLoans = (all = false) => api.get('/loans', { params: { all } })
+export const getLoanDetail = (id) => api.get(`/loans/${id}`)
+export const getLoanAuditSummary = () => api.get('/loans/audit/summary')
+export const getLoanAuditHistory = (params = {}) => api.get('/loans/audit/history', { params })
 export const createLoan = (data) => api.post('/loans', data)
 export const returnLoan = (id) => api.put(`/loans/${id}/return`)
 
 export const getInventoryStats = () => api.get('/inventory/stats')
 export const getBooksByPosisi = (posisiId) => api.get(`/inventory/posisi/${posisiId}`)
 export const checkInventory = (data) => api.post('/inventory/check', data)
+export const transferInventory = (data) => api.post('/inventory/transfer', data)
+export const startStocktakeSession = (data = {}) => api.post('/inventory/stocktake/sessions', data)
+export const addStocktakeEntry = (sessionId, data) => api.post(`/inventory/stocktake/${sessionId}/entries`, data)
+export const getStocktakeSession = (sessionId) => api.get(`/inventory/stocktake/${sessionId}`)
+export const closeStocktakeSession = (sessionId) => api.put(`/inventory/stocktake/${sessionId}/close`)
+export const getBookStockBreakdown = (bookId) => api.get(`/books/${bookId}/stock-breakdown`)
+export const updateBookStockBreakdown = (bookId, data) => api.put(`/books/${bookId}/stock-breakdown`, data)
+export const getBookStockAvailability = (bookId) => api.get(`/books/${bookId}/stock-availability`)
+
+export const getMembers = (params = {}) => api.get('/members', { params })
+export const getMemberProfile = (name) => api.get(`/members/${encodeURIComponent(name)}`)
 
 export const getDashboardStats = () => api.get('/dashboard/stats')
 export const getTopCategories = () => api.get('/dashboard/top-categories')

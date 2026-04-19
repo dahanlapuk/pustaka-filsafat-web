@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getBooks, searchBooks, deleteBook } from '../api'
+import { getBooks, searchBooks, deleteBook, getCategories } from '../api'
 import { useAdmin } from '../stores/admin'
 import Pagination from '../components/Pagination.vue'
 
@@ -10,6 +10,7 @@ const { currentAdmin, isSuperadmin } = useAdmin()
 
 // ── State ──────────────────────────────────────────────────
 const books       = ref([])
+const categories  = ref([])
 const loading     = ref(true)
 const deleting    = ref(null)
 const searchQuery = ref('')
@@ -25,7 +26,25 @@ const LIMIT_OPTIONS = [10, 20, 50, 100]
 
 // Filter (backend)
 const filterKategori = ref('')
+const filterTag      = ref('')
 const filterStatus   = ref('')
+
+const groupedCategories = computed(() => {
+  const groups = {
+    bentuk: [],
+    konten: [],
+    lain: [],
+    tanpa_group: [],
+  }
+
+  for (const cat of categories.value) {
+    const key = cat.grouping || 'tanpa_group'
+    if (!groups[key]) groups[key] = []
+    groups[key].push(cat)
+  }
+
+  return groups
+})
 
 // ── Debounce search ────────────────────────────────────────
 let searchTimer = null
@@ -36,12 +55,17 @@ const fetchBooks = async () => {
   try {
     let res
     if (searchQuery.value.trim()) {
-      res = await searchBooks(searchQuery.value.trim(), page.value, limit.value)
+      res = await searchBooks(searchQuery.value.trim(), page.value, limit.value, {
+        kategori_id: filterKategori.value || undefined,
+        tag_id: filterTag.value || undefined,
+        status: filterStatus.value || undefined,
+      })
     } else {
       res = await getBooks({
         page:        page.value,
         limit:       limit.value,
         kategori_id: filterKategori.value || undefined,
+        tag_id:      filterTag.value      || undefined,
         status:      filterStatus.value   || undefined,
       })
     }
@@ -56,10 +80,22 @@ const fetchBooks = async () => {
   }
 }
 
-onMounted(fetchBooks)
+const fetchCategories = async () => {
+  try {
+    const res = await getCategories()
+    categories.value = res.data || []
+  } catch (e) {
+    console.error('Gagal load kategori:', e)
+  }
+}
+
+onMounted(async () => {
+  await fetchCategories()
+  await fetchBooks()
+})
 
 // Watch filter changes → reset to page 1
-watch([filterKategori, filterStatus, limit], () => {
+watch([filterKategori, filterTag, filterStatus, limit], () => {
   page.value = 1
   fetchBooks()
 })
@@ -132,6 +168,29 @@ const handleDelete = async (book) => {
       </div>
 
       <!-- Filter Status -->
+      <select v-model="filterKategori" style="width: 180px;">
+        <option value="">Semua Kategori Utama</option>
+        <option v-for="cat in categories" :key="`main-${cat.id}`" :value="cat.id">
+          {{ cat.nama }}
+        </option>
+      </select>
+
+      <select v-model="filterTag" style="width: 180px;">
+        <option value="">Semua Tag</option>
+        <optgroup v-if="groupedCategories.bentuk.length" label="Bentuk">
+          <option v-for="cat in groupedCategories.bentuk" :key="`tag-bentuk-${cat.id}`" :value="cat.id">{{ cat.nama }}</option>
+        </optgroup>
+        <optgroup v-if="groupedCategories.konten.length" label="Konten">
+          <option v-for="cat in groupedCategories.konten" :key="`tag-konten-${cat.id}`" :value="cat.id">{{ cat.nama }}</option>
+        </optgroup>
+        <optgroup v-if="groupedCategories.lain.length" label="Lain">
+          <option v-for="cat in groupedCategories.lain" :key="`tag-lain-${cat.id}`" :value="cat.id">{{ cat.nama }}</option>
+        </optgroup>
+        <optgroup v-if="groupedCategories.tanpa_group.length" label="Tanpa Group">
+          <option v-for="cat in groupedCategories.tanpa_group" :key="`tag-none-${cat.id}`" :value="cat.id">{{ cat.nama }}</option>
+        </optgroup>
+      </select>
+
       <select v-model="filterStatus" style="width: 140px;">
         <option value="">Semua Status</option>
         <option value="tersedia">Tersedia</option>
@@ -179,6 +238,13 @@ const handleDelete = async (book) => {
             <div class="book-title-line">{{ book.judul }}</div>
             <div class="book-meta-line">
               <span v-if="book.kategori_nama">{{ book.kategori_nama }}</span>
+              <span
+                v-for="tag in (book.tags || [])"
+                :key="`tag-${book.id}-${tag.id}`"
+                class="tag-chip"
+              >
+                #{{ tag.nama }}
+              </span>
               <span v-if="book.posisi_kode" class="posisi-code" style="font-size: 0.75rem;">
                 📍 {{ book.posisi_kode }}
               </span>
@@ -297,10 +363,20 @@ const handleDelete = async (book) => {
 
 .book-meta-line {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.875rem;
   margin-top: 0.2rem;
   font-size: 0.78rem;
   color: var(--text-secondary);
+}
+
+.tag-chip {
+  font-size: 0.68rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.08rem 0.42rem;
 }
 
 .book-status-block {

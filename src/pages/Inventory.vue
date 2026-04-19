@@ -285,7 +285,7 @@ export default {
 }
 
 .page-subtitle {
-  color: var(--gray);
+  color: var(--text-secondary);
   margin-bottom: 2rem;
 }
 
@@ -297,7 +297,7 @@ export default {
 }
 
 .stat-card {
-  background: var(--white);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   padding: 1.5rem;
   text-align: center;
@@ -308,7 +308,7 @@ export default {
 
 .stat-card.accent {
   background: var(--accent);
-  color: var(--white);
+  color: var(--text-inverse);
   border-color: var(--accent);
 }
 
@@ -337,7 +337,7 @@ export default {
   width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
-  background: var(--white);
+  background: var(--bg-surface);
   font-size: 1rem;
   font-family: var(--font-body);
 }
@@ -371,9 +371,9 @@ export default {
 
 .btn {
   padding: 0.5rem 1rem;
-  border: 1px solid var(--black);
-  background: var(--white);
-  color: var(--black);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 0.875rem;
   cursor: pointer;
   font-family: var(--font-body);
@@ -381,8 +381,8 @@ export default {
 }
 
 .btn:hover {
-  background: var(--black);
-  color: var(--white);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .btn-outline {
@@ -390,8 +390,9 @@ export default {
 }
 
 .btn-primary {
-  background: var(--black);
-  color: var(--white);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
   width: 100%;
   padding: 1rem;
   font-size: 1rem;
@@ -405,8 +406,8 @@ export default {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .book-check-list {
@@ -429,12 +430,12 @@ export default {
 }
 
 .book-check-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-elevated);
 }
 
 .book-check-item.selected {
   background: var(--accent);
-  color: var(--white);
+  color: var(--text-inverse);
 }
 
 .book-check-item.selected .book-meta {
@@ -442,7 +443,7 @@ export default {
 }
 
 .book-check-item.checked-before:not(.selected) {
-  background: #f0f7f0;
+  background: var(--success-bg);
 }
 
 .check-indicator {
@@ -487,7 +488,7 @@ export default {
   align-items: flex-end;
   gap: 0.25rem;
   font-size: 0.75rem;
-  color: var(--gray);
+  color: var(--text-secondary);
   flex-shrink: 0;
   margin-left: 1rem;
 }
@@ -501,7 +502,7 @@ export default {
 
 .badge-warning {
   background: #ffc107;
-  color: #000;
+  color: var(--text-inverse);
 }
 
 .last-checked {
@@ -511,7 +512,7 @@ export default {
 .move-section {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: #f9f9f9;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
 }
 
@@ -534,13 +535,13 @@ export default {
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 .loading {
   text-align: center;
   padding: 2rem;
-  color: var(--gray);
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

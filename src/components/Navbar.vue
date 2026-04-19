@@ -195,11 +195,16 @@ onUnmounted(() => {
           </template>
 
           <div class="drawer-section-title">LAINNYA</div>
+          <RouterLink to="/"            class="drawer-link" @click="closeDrawer">🌐 Katalog Publik</RouterLink>
           <RouterLink to="/admin/logs"    class="drawer-link" @click="closeDrawer">📜 Log Aktivitas</RouterLink>
           <RouterLink to="/admin/profile" class="drawer-link" @click="closeDrawer">👤 Profil Saya</RouterLink>
         </nav>
 
         <div class="drawer-footer">
+          <button class="drawer-theme-toggle" @click="toggleTheme" :aria-label="isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'">
+            <span>{{ isDark ? '☀️' : '🌙' }}</span>
+            <span>{{ isDark ? 'Mode Terang' : 'Mode Gelap' }}</span>
+          </button>
           <div class="drawer-user" v-if="isLoggedIn">
             <span class="drawer-user-name">{{ currentAdmin?.nama }}</span>
             <span v-if="isSuperadmin" class="badge-super">SA</span>
@@ -485,6 +490,27 @@ onUnmounted(() => {
 .drawer-footer {
   padding: 1.25rem;
   border-top: 1px solid var(--border);
+}
+
+.drawer-theme-toggle {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drawer-theme-toggle:hover {
+  border-color: var(--border-strong);
 }
 
 .drawer-user {

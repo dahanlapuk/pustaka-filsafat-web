@@ -271,7 +271,7 @@ async function handlePasswordChange() {
 }
 
 .page-header p {
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 .profile-grid {
@@ -287,8 +287,8 @@ async function handlePasswordChange() {
 }
 
 .profile-section {
-  background: white;
-  border: 1px solid var(--gray-200);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: var(--space-5);
 }
@@ -298,7 +298,7 @@ async function handlePasswordChange() {
   font-weight: 600;
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--border);
 }
 
 .section-header {
@@ -307,7 +307,7 @@ async function handlePasswordChange() {
   align-items: center;
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--border);
 }
 
 .section-header h2 {
@@ -331,12 +331,14 @@ async function handlePasswordChange() {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--gray-700);
+  color: var(--text-secondary);
 }
 
 .form-input {
   padding: var(--space-3);
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: var(--radius);
   font-size: 0.875rem;
   transition: border-color 0.2s;
@@ -344,18 +346,18 @@ async function handlePasswordChange() {
 
 .form-input:focus {
   outline: none;
-  border-color: var(--black);
+  border-color: var(--border-strong);
 }
 
 .form-input:disabled {
-  background: var(--gray-100);
-  color: var(--gray-500);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
 .form-hint {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .btn {
@@ -369,12 +371,12 @@ async function handlePasswordChange() {
 }
 
 .btn-primary {
-  background: var(--black);
-  color: white;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--gray-800);
+  background: var(--accent-hover);
 }
 
 .btn-primary:disabled {
@@ -384,12 +386,12 @@ async function handlePasswordChange() {
 
 .btn-outline {
   background: transparent;
-  border: 1px solid var(--gray-300);
-  color: var(--gray-700);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
 }
 
 .btn-outline:hover {
-  background: var(--gray-100);
+  background: var(--bg-elevated);
 }
 
 .btn-sm {
@@ -408,21 +410,21 @@ async function handlePasswordChange() {
 }
 
 .alert-success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success);
 }
 
 .alert-error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
 }
 
 .alert-warning {
-  background: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .password-section {
@@ -432,7 +434,7 @@ async function handlePasswordChange() {
 .password-info {
   margin-top: var(--space-5);
   padding: var(--space-4);
-  background: var(--gray-50);
+  background: var(--bg-elevated);
   border-radius: var(--radius);
 }
 
@@ -444,7 +446,7 @@ async function handlePasswordChange() {
 
 .password-info ul {
   font-size: 0.8rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin: 0;
   padding-left: var(--space-4);
 }
@@ -455,10 +457,10 @@ async function handlePasswordChange() {
 
 .security-info {
   font-size: 0.875rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 .security-info strong {
-  color: var(--gray-800);
+  color: var(--text-primary);
 }
 </style>

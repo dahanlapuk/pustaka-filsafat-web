@@ -172,7 +172,7 @@ onMounted(fetchBook)
 }
 
 .back-link:hover {
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .book-detail {
@@ -227,7 +227,7 @@ onMounted(fetchBook)
 .info-value {
   font-size: 1rem;
   font-weight: 500;
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .book-note {

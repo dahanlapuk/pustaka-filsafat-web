@@ -282,8 +282,8 @@ onMounted(() => {
 /* Form Card */
 .loan-form-card {
   padding: var(--space-5);
-  background-color: var(--gray-100);
-  border: 2px solid var(--gray-200);
+  background-color: var(--bg-elevated);
+  border: 2px solid var(--border);
 }
 
 .form-title {
@@ -309,7 +309,7 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--gray-700);
+  color: var(--text-secondary);
 }
 
 .required {
@@ -319,19 +319,19 @@ onMounted(() => {
 .form-input {
   padding: var(--space-3) var(--space-4);
   font-size: 1rem;
-  border: 2px solid var(--gray-300);
+  border: 2px solid var(--border-medium);
   border-radius: var(--radius-sm);
-  background-color: var(--white);
+  background-color: var(--bg-surface);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--black);
+  border-color: var(--border-strong);
 }
 
 .form-hint {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .form-actions {
@@ -349,13 +349,13 @@ onMounted(() => {
 }
 
 .alert-error {
-  background-color: #FEE2E2;
-  color: #991B1B;
+  background-color: var(--danger-bg);
+  color: var(--danger);
 }
 
 .alert-success {
-  background-color: #D1FAE5;
-  color: #065F46;
+  background-color: var(--success-bg);
+  color: var(--success);
 }
 
 /* Table */
@@ -373,7 +373,7 @@ onMounted(() => {
 .loans-table td {
   padding: var(--space-4);
   text-align: left;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--border);
 }
 
 .loans-table th {
@@ -382,12 +382,12 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--gray-600);
-  background-color: var(--gray-100);
+  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
 }
 
 .loans-table tr:hover {
-  background-color: var(--gray-50, #FAFAFA);
+  background-color: var(--bg-elevated);
 }
 
 .book-info {
@@ -402,7 +402,7 @@ onMounted(() => {
 
 .book-code {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .borrower-name {
@@ -415,13 +415,13 @@ onMounted(() => {
   padding: var(--space-1) var(--space-2);
   font-size: 0.75rem;
   font-weight: 600;
-  background-color: var(--gray-200);
+  background-color: var(--bg-elevated);
   border-radius: var(--radius-sm);
 }
 
 .duration-long {
-  background-color: #FEE2E2;
-  color: #991B1B;
+  background-color: var(--danger-bg);
+  color: var(--danger);
 }
 
 .btn-sm {
@@ -432,13 +432,13 @@ onMounted(() => {
 /* Summary */
 .loans-summary {
   padding: var(--space-4);
-  background-color: var(--gray-100);
+  background-color: var(--bg-elevated);
   text-align: center;
 }
 
 .summary-text {
   font-size: 0.875rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 /* States */

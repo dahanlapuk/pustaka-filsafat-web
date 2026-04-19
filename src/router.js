@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // Public pages
 import PublicCatalog from './pages/PublicCatalog.vue'
+import Changelog from './pages/Changelog.vue'
+import MemberArchive from './pages/MemberArchive.vue'
 
 // Admin pages
 import AdminLogin from './pages/AdminLogin.vue'
@@ -11,6 +13,9 @@ import BookDetail from './pages/BookDetail.vue'
 import BookForm from './pages/BookForm.vue'
 import Loans from './pages/Loans.vue'
 import Inventory from './pages/Inventory.vue'
+import InventoryTransfer from './pages/InventoryTransfer.vue'
+import StockStocktake from './pages/StockStocktake.vue'
+import LoanAuditDashboard from './pages/LoanAuditDashboard.vue'
 import ActivityLogs from './pages/ActivityLogs.vue'
 import AdminProfile from './pages/AdminProfile.vue'
 import UpdatePosisi from './pages/UpdatePosisi.vue'
@@ -31,6 +36,20 @@ const routes = [
   {
     path: '/loan-request/:book_id',
     redirect: to => ({ path: '/', query: { loan: to.params.book_id } })
+  },
+
+  // Changelog (public)
+  {
+    path: '/changelog',
+    name: 'Changelog',
+    component: Changelog,
+    meta: { public: true }
+  },
+  {
+    path: '/members',
+    name: 'MemberArchive',
+    component: MemberArchive,
+    meta: { public: true }
   },
 
   // Admin login
@@ -86,6 +105,21 @@ const routes = [
     path: '/admin/inventory',
     name: 'Inventory',
     component: Inventory
+  },
+  {
+    path: '/admin/inventory-transfer',
+    name: 'InventoryTransfer',
+    component: InventoryTransfer
+  },
+  {
+    path: '/admin/stocktake',
+    name: 'StockStocktake',
+    component: StockStocktake
+  },
+  {
+    path: '/admin/loan-audit',
+    name: 'LoanAuditDashboard',
+    component: LoanAuditDashboard
   },
   {
     path: '/admin/logs',

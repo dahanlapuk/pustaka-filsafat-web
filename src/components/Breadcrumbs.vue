@@ -63,7 +63,7 @@ const breadcrumbs = computed(() => {
 }
 
 .crumb-link:hover {
-  color: var(--black);
+  color: var(--text-primary);
 }
 
 .crumb-separator {
@@ -71,7 +71,7 @@ const breadcrumbs = computed(() => {
 }
 
 .crumb-current {
-  color: var(--black);
+  color: var(--text-primary);
   font-weight: 500;
 }
 </style>
