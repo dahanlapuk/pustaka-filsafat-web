@@ -97,8 +97,20 @@ export const approveDeleteRequest = (id, data) => api.put(`/delete-requests/${id
 export const rejectDeleteRequest = (id, data) => api.put(`/delete-requests/${id}/reject`, data)
 
 // Superadmin — manajemen admin
-export const createAdmin = (data) => api.post('/admins', data)
+export const createAdmin = (data) => {
+  // Encode password menggunakan handler yang sama seperti login
+  if (data.password) {
+    return api.post('/admins', {
+      ...data,
+      password: encodePassword(data.password)
+    })
+  }
+  return api.post('/admins', data)
+}
 export const updateAdminBySuper = (id, data) => api.put(`/admins/${id}/admin`, data)
 export const deleteAdmin = (id, data) => api.delete(`/admins/${id}`, { data })
+export const resetAdminPassword = (id, newPassword) => api.put(`/admins/${id}/reset-password`, {
+  new_password: encodePassword(newPassword)
+})
 
 export default api
