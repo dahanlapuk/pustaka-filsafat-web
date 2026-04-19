@@ -1,109 +1,129 @@
 <script setup>
 /**
- * PosisiSelector — 4 Dropdown Cascading
- * Format output kode: R{rak}-{baris}{kolom}-{letak}
- * Contoh: R1-A1-B, R2-#5-F, R3-C10-B, R4-A-F
+ * PosisiSelector — cascading dropdown based on actual posisi records.
  */
 import { ref, computed, watch } from 'vue'
-import { getPosisiStruktur, getPosisi } from '../api'
+import { getPosisi } from '../api'
 
 const props = defineProps({
-  modelValue: { type: Number, default: null }, // posisi_id
+  modelValue: { type: Number, default: null },
   disabled: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-// ── State ─────────────────────────────────────────────────
-const allPosisi = ref([])   // dari GET /api/posisi
-const struktur  = ref(null) // dari GET /api/posisi/struktur
-
-const selectedRak   = ref(null)
+const allPosisi = ref([])
+const selectedRak = ref(null)
 const selectedBaris = ref(null)
 const selectedKolom = ref(null)
 const selectedLetak = ref(null)
 
-// ── Load data ─────────────────────────────────────────────
+const normalizeString = (value) => (value === null || value === undefined ? '' : String(value))
+
 async function load() {
   try {
-    const [posRes, strRes] = await Promise.all([getPosisi(), getPosisiStruktur()])
-    allPosisi.value = posRes.data || []
-    struktur.value  = strRes.data || null
-
-    // Jika ada initial value, decode ke 4 komponen
-    if (props.modelValue) {
-      const match = allPosisi.value.find(p => p.id === props.modelValue)
-      if (match) {
-        selectedRak.value   = match.rak_no
-        selectedBaris.value = match.baris
-        selectedKolom.value = match.kolom_no ?? null
-        selectedLetak.value = match.letak
-      }
-    }
-  } catch (e) {
-    console.error('PosisiSelector: gagal load data', e)
+    const res = await getPosisi()
+    allPosisi.value = res.data || []
+    syncFromModel()
+  } catch (error) {
+    console.error('PosisiSelector: gagal load data', error)
   }
 }
 
+function syncFromModel() {
+  if (!props.modelValue) {
+    selectedRak.value = null
+    selectedBaris.value = null
+    selectedKolom.value = null
+    selectedLetak.value = null
+    return
+  }
+
+  const match = allPosisi.value.find((p) => p.id === props.modelValue)
+  if (!match) return
+
+  selectedRak.value = match.rak_no
+  selectedBaris.value = match.baris
+  selectedKolom.value = match.kolom_no ?? null
+  selectedLetak.value = match.letak ?? null
+}
+
 load()
+watch(() => props.modelValue, syncFromModel)
 
-// ── Computed options ──────────────────────────────────────
-const rakOptions = computed(() => [1, 2, 3, 4])
-
-const barisOptions = computed(() => {
-  if (!selectedRak.value || !struktur.value) return []
-  const key = `rak${selectedRak.value}`
-  return struktur.value[key]?.baris || []
+const rakOptions = computed(() => {
+  const seen = new Set()
+  return allPosisi.value
+    .map((p) => p.rak_no)
+    .filter((rakNo) => {
+      if (seen.has(rakNo)) return false
+      seen.add(rakNo)
+      return true
+    })
+    .sort((a, b) => a - b)
 })
 
-const kolomOptions = computed(() => {
-  if (!selectedRak.value || !selectedBaris.value || !struktur.value) return []
-  const key = `rak${selectedRak.value}`
-  const info = struktur.value[key]
-  if (!info?.kolom) return [] // Rak 4: tidak ada kolom
-
-  // Baris '#' hanya punya kolom 5
-  const khusus = info.baris_kolom_khusus?.[selectedBaris.value]
-  return khusus ?? info.kolom
+const barisOptions = computed(() => {
+  if (!selectedRak.value) return []
+  const seen = new Set()
+  return allPosisi.value
+    .filter((p) => p.rak_no == selectedRak.value)
+    .map((p) => p.baris)
+    .filter((baris) => {
+      const key = normalizeString(baris)
+      if (!key) return false
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 })
 
 const showKolom = computed(() => {
-  if (!selectedRak.value || !struktur.value) return true
-  const key = `rak${selectedRak.value}`
-  return struktur.value[key]?.kolom !== null
+  if (!selectedRak.value || !selectedBaris.value) return false
+  return allPosisi.value.some(
+    (p) => p.rak_no == selectedRak.value && p.baris === selectedBaris.value && p.kolom_no !== null && p.kolom_no !== undefined,
+  )
 })
 
-const letakOptions = computed(() => ['B', 'F'])
+const kolomOptions = computed(() => {
+  if (!selectedRak.value || !selectedBaris.value) return []
+  const seen = new Set()
+  return allPosisi.value
+    .filter((p) => p.rak_no == selectedRak.value && p.baris === selectedBaris.value && p.kolom_no !== null && p.kolom_no !== undefined)
+    .map((p) => p.kolom_no)
+    .filter((kolom) => {
+      if (seen.has(kolom)) return false
+      seen.add(kolom)
+      return true
+    })
+    .sort((a, b) => a - b)
+})
 
+const letakOptions = ['B', 'F']
 const letakLabel = { B: 'B — Back (dalam/belakang)', F: 'F — Front (luar/depan)' }
 
-// ── Kode generated ────────────────────────────────────────
 const generatedKode = computed(() => {
   if (!selectedRak.value || !selectedBaris.value || !selectedLetak.value) return null
   if (showKolom.value && !selectedKolom.value) return null
 
   if (!showKolom.value) {
-    // Rak 4: R4-A-B
     return `R${selectedRak.value}-${selectedBaris.value}-${selectedLetak.value}`
   }
-  // Rak 1-3: R1-A1-B
+
   return `R${selectedRak.value}-${selectedBaris.value}${selectedKolom.value}-${selectedLetak.value}`
 })
 
-// ── Cari posisi_id berdasarkan kode ──────────────────────
 const matchedPosisi = computed(() => {
   if (!generatedKode.value) return null
-  return allPosisi.value.find(p => p.kode === generatedKode.value) ?? null
+  return allPosisi.value.find((p) => p.kode === generatedKode.value) ?? null
 })
 
-// ── Watch: emit changes ───────────────────────────────────
 watch(matchedPosisi, (p) => {
   const id = p?.id ?? null
   emit('update:modelValue', id)
   emit('change', { id, kode: generatedKode.value, posisi: p })
 })
 
-// ── Reset cascading ───────────────────────────────────────
 function onRakChange() {
   selectedBaris.value = null
   selectedKolom.value = null
@@ -123,7 +143,6 @@ function onKolomChange() {
 <template>
   <div class="posisi-selector" :class="{ disabled }">
     <div class="selector-grid">
-      <!-- RAK -->
       <div class="sel-group">
         <label class="sel-label">Rak</label>
         <select
@@ -137,7 +156,6 @@ function onKolomChange() {
         </select>
       </div>
 
-      <!-- BARIS -->
       <div class="sel-group">
         <label class="sel-label">Baris</label>
         <select
@@ -153,8 +171,7 @@ function onKolomChange() {
         </select>
       </div>
 
-      <!-- KOLOM (hanya jika bukan Rak 4) -->
-      <div class="sel-group" v-if="showKolom">
+      <div v-if="showKolom" class="sel-group">
         <label class="sel-label">Kolom</label>
         <select
           v-model="selectedKolom"
@@ -167,7 +184,6 @@ function onKolomChange() {
         </select>
       </div>
 
-      <!-- LETAK -->
       <div class="sel-group">
         <label class="sel-label">Letak</label>
         <select
@@ -181,7 +197,6 @@ function onKolomChange() {
       </div>
     </div>
 
-    <!-- Preview kode yang di-generate -->
     <div v-if="generatedKode" class="kode-preview" :class="{ 'kode-found': matchedPosisi, 'kode-missing': !matchedPosisi }">
       <span class="kode-label">Kode posisi:</span>
       <code class="kode-value">{{ generatedKode }}</code>
@@ -242,7 +257,6 @@ function onKolomChange() {
   border-color: var(--text-primary);
 }
 
-/* Preview kode */
 .kode-preview {
   display: flex;
   align-items: center;
@@ -254,9 +268,9 @@ function onKolomChange() {
   flex-wrap: wrap;
 }
 
-.kode-found   { border-color: var(--success); background: var(--success-bg); }
+.kode-found { border-color: var(--success); background: var(--success-bg); }
 .kode-missing { border-color: var(--warning); background: var(--warning-bg); }
-.kode-empty   { color: var(--text-muted); }
+.kode-empty { color: var(--text-muted); }
 
 .kode-label { color: var(--text-secondary); font-size: 0.75rem; }
 

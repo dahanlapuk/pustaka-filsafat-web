@@ -92,12 +92,13 @@ async function login(adminIdParam, password) {
   try {
     const res = await loginAdmin(adminIdParam, password)
     currentAdmin.value = res.data.admin
-    sessionToken.value = res.data.session_token || null
+    sessionToken.value = res.data.session_token || res.data.token || res.data.sessionToken || null
     sessionExpiresAt.value = res.data.session_expires_at || null
 
     if (!sessionToken.value) {
       clearAuthState()
-      return { success: false, error: 'Token sesi tidak diterima dari server' }
+      const responseKeys = res.data && typeof res.data === 'object' ? Object.keys(res.data).join(', ') : 'unknown'
+      return { success: false, error: `Token sesi tidak diterima dari server. Keys response: ${responseKeys}` }
     }
 
     localStorage.setItem('currentAdmin', JSON.stringify(res.data.admin))
