@@ -28,7 +28,9 @@ const form = ref({
   kategori_id: null,
   posisi_id:   null,
   qty:         1,
-  keterangan:  ''
+  keterangan:  '',
+  tahun:       null,
+  penulis:     ''
 })
 
 const tagSuggestions = computed(() => {
@@ -56,7 +58,9 @@ const fetchBook = async () => {
       kategori_id: book.kategori_id || null,
       posisi_id:   book.posisi_id   || null,
       qty:         book.qty         || 1,
-      keterangan:  book.keterangan  || ''
+      keterangan:  book.keterangan  || '',
+      tahun:       book.tahun       || null,
+      penulis:     book.penulis     || ''
     }
 
     selectedTags.value = (book.tags || []).map(t => ({
@@ -220,6 +224,17 @@ const handleSubmit = async () => {
             <label class="form-label">Jumlah Eksemplar</label>
             <input v-model="form.qty" type="number" min="1" max="999" style="max-width: 100px;" />
           </div>
+          <div class="form-group">
+            <label class="form-label">Tahun</label>
+            <input v-model="form.tahun" type="number" min="1900" :max="new Date().getFullYear() + 1" placeholder="2023" style="max-width: 100px;" />
+          </div>
+        </div>
+
+        <!-- Penulis -->
+        <div class="form-group">
+          <label class="form-label">Penulis / Pengarang</label>
+          <input v-model="form.penulis" type="text" placeholder="Nama penulis (opsional)" />
+          <span class="form-hint">Nama penulis atau pengarang (opsional)</span>
         </div>
 
         <!-- Kategori -->

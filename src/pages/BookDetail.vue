@@ -130,7 +130,17 @@ onMounted(fetchBook)
             <span class="info-label">Jumlah</span>
             <span class="info-value">{{ book.qty }} eksemplar</span>
           </div>
-          
+
+          <div v-if="book.tahun" class="info-item">
+            <span class="info-label">Tahun</span>
+            <span class="info-value">{{ book.tahun }}</span>
+          </div>
+
+          <div v-if="book.penulis" class="info-item">
+            <span class="info-label">Penulis</span>
+            <span class="info-value">{{ book.penulis }}</span>
+          </div>
+
           <div v-if="book.is_dipinjam" class="info-item">
             <span class="info-label">Dipinjam oleh</span>
             <span class="info-value text-accent">{{ book.peminjam }}</span>

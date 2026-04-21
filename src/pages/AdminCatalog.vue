@@ -28,6 +28,7 @@ const LIMIT_OPTIONS = [10, 20, 50, 100]
 const filterKategori = ref('')
 const filterTag      = ref('')
 const filterStatus   = ref('')
+const filterUnpositioned = ref('')  // Filter untuk buku tanpa posisi
 
 const groupedCategories = computed(() => {
   const groups = {
@@ -67,6 +68,7 @@ const fetchBooks = async () => {
         kategori_id: filterKategori.value || undefined,
         tag_id:      filterTag.value      || undefined,
         status:      filterStatus.value   || undefined,
+        unpositioned: filterUnpositioned.value || undefined,
       })
     }
     const d      = res.data
@@ -95,7 +97,7 @@ onMounted(async () => {
 })
 
 // Watch filter changes → reset to page 1
-watch([filterKategori, filterTag, filterStatus, limit], () => {
+watch([filterKategori, filterTag, filterStatus, filterUnpositioned, limit], () => {
   page.value = 1
   fetchBooks()
 })
@@ -195,6 +197,12 @@ const handleDelete = async (book) => {
         <option value="">Semua Status</option>
         <option value="tersedia">Tersedia</option>
         <option value="dipinjam">Dipinjam</option>
+      </select>
+
+      <select v-model="filterUnpositioned" style="width: 160px;">
+        <option value="">Semua Posisi</option>
+        <option value="true">Belum Diposisikan</option>
+        <option value="false">Sudah Diposisikan</option>
       </select>
 
       <!-- Per page -->
