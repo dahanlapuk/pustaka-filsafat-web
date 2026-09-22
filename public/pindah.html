@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="5; url=https://biblioteka.filsafatui.app">
+<title>Perpustakaan Sudah Pindah — Biblioteka Departemen Filsafat</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0;
+         display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:2rem; text-align:center; }
+  .card { max-width: 480px; }
+  h1 { font-size:1.5rem; margin-bottom:0.5rem; }
+  p { color:#94a3b8; line-height:1.6; }
+  a { color:#60a5fa; }
+  #hitung { font-weight:600; color:#e2e8f0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Perpustakaan Sudah Pindah</h1>
+    <p>
+      Katalog dan sistem peminjaman kini ada di alamat baru:<br>
+      <a href="https://biblioteka.filsafatui.app">biblioteka.filsafatui.app</a>
+    </p>
+    <p>Anda akan dialihkan otomatis dalam <span id="hitung">5</span> detik.</p>
+  </div>
+  <script>
+    var sisa = 5;
+    var el = document.getElementById('hitung');
+    var t = setInterval(function () {
+      sisa -= 1;
+      if (sisa <= 0) {
+        clearInterval(t);
+        window.location.href = 'https://biblioteka.filsafatui.app';
+      } else {
+        el.textContent = sisa;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
