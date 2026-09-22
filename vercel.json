@@ -1,12 +1,9 @@
 {
-  "routes": [
+  "redirects": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/pindah.html"
+      "source": "/(.*)",
+      "destination": "https://biblioteka.filsafatui.app/?dari=v1",
+      "statusCode": 301
     }
   ]
 }
